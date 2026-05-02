@@ -7,7 +7,23 @@ The goal of this tool is to allow users to read and edit clock, power and other 
 
 Editing is not implemented as of yet so no way to brick your card with a bad vBIOS :)
 
+***Once editing is implemented it should only work for Pascal and Turing cards ! Newer cards won't accept a modified vBIOS***
+
 The app might crash if you feed it an incompatible vBIOS aka a vBIOS that I haven't tried yet, I implemented some redundancy but expect crashes non the less.
+
+## Using the tool
+
+Find the latest version in the releases and follow the instructions on how to run the program.
+
+Since it is written in python, you can either execute the python code directly or run a precompiled exe.
+
+## Screenshots :
+The vbios in the picture is my personnal 1060M MXM vbios that I edited by hand to change power limits + enable power slider.
+
+<img width="741" height="842" alt="image" src="https://github.com/user-attachments/assets/0f454a89-a9a5-4030-9ee1-5d1d07002b65" />
+
+<img width="746" height="848" alt="image" src="https://github.com/user-attachments/assets/952be8db-05df-4be3-940d-c4574d899fea" />
+
 
 ## How it works
 The tool uses recursive algorithms to find the data offsets for the different vBIOS tables that contain the info we want to read + edit.
