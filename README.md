@@ -3,15 +3,17 @@
 ## Disclaimer :
 The goal of this tool is to allow users to read and edit clock, power and other settings of their nvidia GPU vBIOS. The guideline being to allow users to tune the performance of their GPU. Specifically targeted at mobile GPUs
 
-I am not a programmer, this code was written in python and then translated to C++ thanks to Nuitka package builder.
+**I am not a programmer, this code was written in python and then translated to C++ thanks to Nuitka package builder. The code is not clean nor sexy, it works, it's not optimal but it shows that it can be done.**
+
+Editing is not implemented as of yet so no way to brick your card with a bad vBIOS :)
+
+The app might crash if you feed it an incompatible vBIOS aka a vBIOS that I haven't tried yet, I implemented some redundancy but expect crashes non the less.
 
 ## How it works
 The tool uses recursive algorithms to find the data offsets for the different vBIOS tables that contain the info we want to read + edit.
 This means that there is wide compatibility among the different generations of GPUs. However this also means that this tool **can make mistakes parsing the data** = I highly recommend to use good judgement as well as double checking the vbios info on sites such as techpowerup to make sure the vbios info you are getting is correct.
 
 On the technical level, I explaine some of the code in comments in the files, the file that contains all the algorithms is the "_calcuator.py". Some of it is guess work (for some offset calculations).
-
-The code is not clean nor sexy, it works, it's not optimal but it shows that it can be done.
 
 ## Current state/compatibility
 The current version of the tool is a **read only** version that only read values from vbios. No editing of vbios files available yet. I would need code to fix the checksums and check that it actually works.
@@ -23,7 +25,7 @@ Compatibility :
 ## TO-DO
 - Add a thermal tab to edit thermal limits
 - Add more compatibility for the P6 gpus as well as maybe Blackwell GPUs (should be possible)
-- Compatibility for desktop cards (more variants then mobile, this will take time)
+- Compatibility for desktop cards (more variants than mobile, this will take time)
 
 ## Sources
 There is little info online of all the vbios data tables that containt the info we want to get to. Here are my sources that allowed me to understand some of these structures. 
