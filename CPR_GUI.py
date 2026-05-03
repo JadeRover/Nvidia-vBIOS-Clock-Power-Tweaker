@@ -4,8 +4,6 @@ from tkinter import scrolledtext
 
 from CPR_GUI_Handler import GUI_handler as handler
 
-import os
-import sys #FOR icon bruh
 
 class CPR_GUI(tk.Tk):
     
@@ -24,7 +22,6 @@ class CPR_GUI(tk.Tk):
         
         self.title("Clock Power Reader alpha 0.2")
         
-        #self.wm_iconbitmap(get_path("logo.ico"))
         
         # CONFIGURE ROWS for the entire "windows" = for the fixed elements such as tabs, console, info/actions
         
@@ -240,19 +237,6 @@ class CPR_GUI(tk.Tk):
     #================================================================================#
     
     # BIND UI ELEMENTS TO CODE#  
-        
-
-def get_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        # If not running as an EXE, use the normal current directory
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
-
 #  TESTING = RUNNING
 
 GUI_handler = handler()

@@ -184,10 +184,11 @@ class parsed_data():
         """        
         clock_list = []
         if len(self.get_CORE_clock_list()) > 0:
-            clock_list = sorted(set(self.get_CORE_clock_list()[0]))
+            clock_list = self.get_CORE_clock_list()[0]
         return_string = "Pascal"
         if len(clock_list) > 9:
             return_string = "Turing & newer"
+            
         return return_string
         
     def return_sorted_calculated_clock_list(self):
@@ -203,12 +204,20 @@ class parsed_data():
             clock_list = sorted(set(self.get_CORE_clock_list()[0]))
         sorted_list = []
         print(f"clock list = {clock_list}")
+        
         # len = 4 is the usual structure :
         if len(clock_list) == 4 :
             sorted_list = clock_list
             sorted_list.append(self.get_MEM_clock_list()[0][0][0]) 
             
         # len > 4 is not usual structure = 1650M, 10x0M, and other possibly
+        
+        
+        elif len(clock_list) == 3: #Add compatibility for cards with only 3 values, supposing boost = max = like T1000 and P6
+            clock_list.append(clock_list[2])
+            clock_list.append(self.get_MEM_clock_list()[0][0][0])
+            sorted_list = clock_list
+        
         elif len(clock_list) > 4:
             sorted_list.append(clock_list[0])
             for i in range(4):
@@ -217,7 +226,8 @@ class parsed_data():
                 if len(sorted_list) > 4: # If NOT 1650 WON'T WORK + BRAKES PROGRAM BRUH
                     sorted_list.pop()
             sorted_list.append(self.get_MEM_clock_list()[0][0][0])                 
-        # len < 4 is UNSUPPORTED STRUCTURE (for now) no clock info will be given            
+        
+        # len < 2 is UNSUPPORTED STRUCTURE (for now) no clock info will be given            
         else :
             sorted_list=[-1,-1,-1,-1,-1] #Dumb way of making sure no errors
            
