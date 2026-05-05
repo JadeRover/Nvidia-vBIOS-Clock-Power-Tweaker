@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import scrolledtext
 
-from CPR_GUI_Handler import GUI_handler as handler
-
+import os
+import sys #FOR icon bruh
 
 class CPR_GUI(tk.Tk):
     
@@ -215,15 +215,23 @@ class CPR_GUI(tk.Tk):
         
         structure_frame = tk.Frame(self, bg="lightgrey", bd=3, relief="raised")
         structure_frame.grid(row=1, column=1, padx=3, pady=3, sticky="nsew")
-        structure_frame.pack_propagate(False)
+        structure_frame.grid_propagate(False)
+        structure_frame.grid_columnconfigure(0, weight=50)
+        structure_frame.grid_columnconfigure(1, weight=50)
         
         structure_label = tk.Label(structure_frame, text='vBIOS ARCHITECTURE :')
-        structure_label.pack(side='top', fill="x")
+        structure_label.grid(row=0, column=0, columnspan=2, sticky='ew')
         
         self.architecture = tk.StringVar(self)        
         
-        ttk.Radiobutton(structure_frame, text = "Pascal", variable = self.architecture,value = "Pascal", state="disabled").pack(side="top",padx = 40, pady=10)
-        ttk.Radiobutton(structure_frame, text = "Turing & newer", variable = self.architecture,value = "Turing & newer", state="disabled").pack(side="top", padx = 40, pady=10)
+        ttk.Radiobutton(structure_frame, text = "Pascal", variable = self.architecture,value = "Pascal", state="disabled").grid(row=1, column=0, padx=2, pady=5, sticky='ew')
+        ttk.Radiobutton(structure_frame, text = "Turing & newer", variable = self.architecture,value = "Turing & newer", state="disabled").grid(row=1, column=1, padx=2, pady=5, sticky='ew')
+        
+        checksum_label = tk.Label(structure_frame, text='CHECKSUM (hex):')
+        checksum_label.grid(row=2, column=0, columnspan=2, pady=5, sticky='ew')
+        
+        self.checksum_entry = tk.Entry(structure_frame, state="disabled")
+        self.checksum_entry.grid(row=3, column=0, columnspan=2, padx=4, pady= 2, sticky="nsew") 
         
         #================================================================================#
         
@@ -237,8 +245,17 @@ class CPR_GUI(tk.Tk):
     #================================================================================#
     
     # BIND UI ELEMENTS TO CODE#  
-#  TESTING = RUNNING
+        
 
-GUI_handler = handler()
-GUI = CPR_GUI(GUI_handler)
-GUI.mainloop()  
+    def resource_path(self,relative_path):
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            # If not running as an EXE, use the normal current directory
+            base_path = os.path.abspath(".")
+    
+        return os.path.join(base_path, relative_path)
+
+#  TESTING = RUNNING

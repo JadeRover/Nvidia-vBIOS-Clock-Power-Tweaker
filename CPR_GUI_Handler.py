@@ -2,11 +2,15 @@ import tkinter as tk
 import os
 from tkinter import filedialog as fd
 from CPR_calculator import parsed_data
+from CPR_Checksum import checksummer
 
 class GUI_handler:
+    
     def __init__(self):
         self.GUI = 0
         self.vbios_data = 0
+        self.vbios_parsed = 0
+        self.checksum_data = 0 
         
     def link_GUI(self, GUI):
         self.GUI = GUI
@@ -35,21 +39,28 @@ class GUI_handler:
             self.GUI.console.insert(tk.INSERT, "\n\n" + "Opened " + filename +" vbios file")
             self.GUI.console["state"] = "disabled"
             
+            
             with open(filename, "rb") as f:
-                    self.vbios_data = parsed_data(f.read())
+                    self.vbios_data = f.read()
+                    self.vbios_parsed = parsed_data(self.vbios_data)
+            
+            #EXECUTE OTHER FUNCTIONS
+            
+            self.checksum_data = checksummer(self.vbios_data)
             
             self.load_clocks_to_GUI()
             self.load_power_to_GUI()
             self.set_architecture()
+            self.load_checksum_to_GUI()
         
     def load_clocks_to_GUI(self):
         
         # Loads to stock clocks into the entries of the clock tab of the GUI
-        clock_list = self.vbios_data.return_sorted_calculated_clock_list()  
+        clock_list = self.vbios_parsed.return_sorted_calculated_clock_list()  
         
         default_mem_value = 0
         # CHECK IF DIFFERENT MEM VALUES = IMPORTANT TO NOTIFY THE USER
-        mem_list = self.vbios_data.get_MEM_clock_list()
+        mem_list = self.vbios_parsed.get_MEM_clock_list()
         if mem_list == [] : #NOT VBIOS
             mem_list=[[]]
         if len(mem_list[0]) < 3:
@@ -92,7 +103,7 @@ class GUI_handler:
         
         
     def load_power_to_GUI(self):
-        COMPLETE_power_list = self.vbios_data.get_power_table_list()[0]
+        COMPLETE_power_list = self.vbios_parsed.get_power_table_list()[0]
         
         OG_entry_list = [self.GUI.OG_target, self.GUI.OG_limit]
         CUSTOM_entry_list = [self.GUI.custom_target, self.GUI.custom_limit]
@@ -153,5 +164,25 @@ class GUI_handler:
                 CUSTOM_entry_list[index].set(0)
         
     def set_architecture(self):
-        self.GUI.architecture.set(self.vbios_data.get_card_architecture())
-        
+        self.GUI.architecture.set(self.vbios_parsed.get_card_architecture())
+    
+    def load_checksum_to_GUI(self):
+        self.GUI.checksum_entry["state"] = "normal"
+        self.GUI.checksum_entry.delete(0, "end")
+        for checksum in self.checksum_data.get_OG_checksum():
+            self.GUI.checksum_entry.insert(0, hex(checksum))
+            self.GUI.checksum_entry.insert(0, " - ")
+            
+        self.GUI.checksum_entry["state"] = "disabled"  
+    
+    def save_vbios(self):
+        """
+        This big function call several sub functions to :
+            - 
+        """
+
+        Returns
+        -------
+        None.
+
+        """
