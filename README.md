@@ -3,11 +3,11 @@
 ## Disclaimer :
 The goal of this tool is to allow users to read and edit clock, power and other settings of their nvidia GPU vBIOS. The guideline being to allow users to tune the performance of their GPU. Specifically targeted at mobile GPUs
 
-**I am not a programmer, this code was written in python and then translated to C++ thanks to Nuitka package builder. The code is not clean nor sexy, it works, it's not optimal but it shows that it can be done.**
+**I am not a programmer, this code was written in python and then compiled thanks to pyinstaller. The code is not clean nor sexy, it works, it's not optimal but it shows that it can be done.**
 
-Editing is not implemented as of yet so no way to brick your card with a bad vBIOS :)
+It is now possible to save your custom vbios. **Be extremely careful, use a CH341a programmer w/ 1.8v adapter to recover from a vbios that bricks your card**. Very little testing has been done so far so expect the programe to brick your vbios ! You have been warned.
 
-***Once editing is implemented it should only work for Pascal and Turing cards ! Newer cards won't accept a modified vBIOS***
+***Once editing is implemented it should only work for Pascal ! Newer cards won't accept a modified vBIOS, they will result in error 43 in windows, card doesn't initialize***
 
 The app might crash if you feed it an incompatible vBIOS aka a vBIOS that I haven't tried yet, I implemented some redundancy but expect crashes non the less.
 
@@ -20,10 +20,9 @@ Since it is written in python, you can either execute the python code directly o
 ## Screenshots :
 The vbios in the picture is my personnal 1060M MXM vbios that I edited by hand to change power limits + enable power slider.
 
-<img width="741" height="842" alt="image" src="https://github.com/user-attachments/assets/0f454a89-a9a5-4030-9ee1-5d1d07002b65" />
+<img width="445" height="507" alt="image" src="https://github.com/user-attachments/assets/28d65235-4dff-493f-9925-d296ab4e94ff" />
 
-<img width="746" height="848" alt="image" src="https://github.com/user-attachments/assets/952be8db-05df-4be3-940d-c4574d899fea" />
-
+<img width="448" height="508" alt="image" src="https://github.com/user-attachments/assets/d2f233a8-ac10-430c-aba0-06d872b87d7e" />
 
 ## How it works
 The tool uses recursive algorithms to find the data offsets for the different vBIOS tables that contain the info we want to read + edit.
@@ -32,7 +31,9 @@ This means that there is wide compatibility among the different generations of G
 On the technical level, I explaine some of the code in comments in the files, the file that contains all the algorithms is the "_calcuator.py". Some of it is guess work (for some offset calculations).
 
 ## Current state/compatibility
-The current version of the tool is a **read only** version that only read values from vbios. No editing of vbios files available yet. I would need code to fix the checksums and check that it actually works.
+The tool saves your edits and also fixes the checksum. Also fixes the checksum for "dual image" vbios such as RTX3000. However my personal testing of flashing a custom vbios to an RTX3000 kept bricking the card ! No compatibiity for flashing Turing and newer cards.
+
+To calculate the clock values the tool applies some rounding. Saving a custom vbios then opening it again might have clock values with +-1 Mhz.
 
 Compatibility :
 - **ONLY Mobile GPUs** are supported right now. I had a look at desktop cards and they have similar architecture to the quadro P6 cards. Implementation should be possible in the future.
@@ -40,6 +41,7 @@ Compatibility :
 
 ## TO-DO
 - Add a thermal tab to edit thermal limits
+- Add a display table tab to read and edit the display outputs of the GPU : DP_A, DP_B, DP_C, DP_D, etc
 - Add more compatibility for the P6 gpus as well as maybe Blackwell GPUs (should be possible)
 - Compatibility for desktop cards (more variants than mobile, this will take time)
 
