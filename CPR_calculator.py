@@ -3,7 +3,12 @@ import struct
 class parsed_data():
     def __init__(self, data):
         self.data = data
-        self.VP_offset_list = self.find_v_p_table_offsets()    
+        self.VP_offset_list = self.find_v_p_table_offsets()
+        self.VP_core_clock_list = self.get_CORE_clock_list()[0] #simple list
+        self.MEM_clock_list = self.get_MEM_clock_list()
+        self.POWER_list = self.get_power_table_list()
+        
+        self.clock_multiplier = 1
     
     def find_v_p_table_offsets(self): #MODIFIED TO RETURN SEVERAL OFFSETS
         # This functions looks for the virtual p state table (VP table) that contains the max GPU clocks + mem clocks that 
@@ -91,10 +96,10 @@ class parsed_data():
                 entry = struct.unpack("<I", data[offset - i: offset - i + 4])[0]/32768
                 if entry > (MEM_clock_list[0][0] - 50) and entry < (MEM_clock_list[0][0] + 300) :
                     
-                    #SECOND CHECK doe by checking if first MEM entry is more or less the double (+-1Mhz) of the 2nd MEM entry
+                    #SECOND CHECK doe by checking if first MEM entry is more or less the double (+-0.5Mhz) of the 2nd MEM entry
                     second_clock = struct.unpack("<h", data[offset - i - 2: offset - i ])[0]
                     
-                    if (entry > second_clock/2 -2) and (entry < second_clock/2 +2) :
+                    if (entry > second_clock/2 -0.5) and (entry < second_clock/2 +0.5) :
                         MEM_clock_list.insert(0, (entry, offset - i))
                         break
                 i += 1
@@ -151,28 +156,31 @@ class parsed_data():
                 slider_list = []
                 slider_true = struct.pack("BBBBB", 0x0F, 0x02, 0xFF, 0xFF, 0xFF)
                 slider_false = struct.pack("BBBBB", 0x0F, 0xFF, 0xFF, 0xFF, 0x02)
+                slider_weird = struct.pack("BBBBB", 0x0F, 0x02, 0xFF, 0xFF, 0x02)
         
             #assumes there won't be 2 different values in the same vbios...
         
                 for entry in self.check_return_offset(snippet1, 0, slider_false):
                     slider_list.append((False, entry + offset - 200))   
                 for entry in self.check_return_offset(snippet1, 0, slider_true):
-                    slider_list.append((True, entry + offset -200))    
+                    slider_list.append((True, entry + offset -200))
+                for entry in self.check_return_offset(snippet1, 0, slider_weird):
+                    slider_list.append((False, entry + offset -200))   
         
-            # looks for the power values -> Only works for GPUS wit 2 power values aka all mobile gpus, 3090 desktop won't work for example
-            # Method : count 3x"0x01" bytes after the offset string, power values are located 7 bytes after
-            
-            power_list = []
-            
-            snippet2 = data[offset : offset+200]
-            
-            power_offset = self.check_return_offset(snippet2, 0, struct.pack("BBB", 0x00, 0x01, 0x00))[2] + offset +7    
-            
-            power_list.append((struct.unpack("<I", data[power_offset: power_offset+4])[0], power_offset))
-            
-            power_list.append((struct.unpack("<I", data[power_offset +4: power_offset+8])[0], power_offset+4))
-            
-            power_list_2D.append(power_list + slider_list)
+                # looks for the power values -> Only works for GPUS wit 2 power values aka all mobile gpus, 3090 desktop won't work for example
+                # Method : count 3x"0x01" bytes after the offset string, power values are located 7 bytes after
+                
+                power_list = []
+                
+                snippet2 = data[offset : offset+200]
+                
+                power_offset = self.check_return_offset(snippet2, 0, struct.pack("BBB", 0x00, 0x01, 0x00))[2] + offset +7    
+                
+                power_list.append((struct.unpack("<I", data[power_offset: power_offset+4])[0], power_offset))
+                
+                power_list.append((struct.unpack("<I", data[power_offset +4: power_offset+8])[0], power_offset+4))
+                
+                power_list_2D.append(power_list + slider_list)
         else :
             power_list_2D = [-1]
         return power_list_2D
@@ -188,6 +196,7 @@ class parsed_data():
         return_string = "Pascal"
         if len(clock_list) > 9:
             return_string = "Turing & newer"
+            self.clock_multiplier = 2
             
         return return_string
         
@@ -203,7 +212,6 @@ class parsed_data():
         if len(self.get_CORE_clock_list()) > 0:
             clock_list = sorted(set(self.get_CORE_clock_list()[0]))
         sorted_list = []
-        print(f"clock list = {clock_list}")
         
         # len = 4 is the usual structure :
         if len(clock_list) == 4 :
@@ -238,7 +246,7 @@ class parsed_data():
             multiplier = 2
             
         for i in range(len(sorted_list)-1):
-            sorted_list[i] = round(sorted_list[i] * multiplier)
+            sorted_list[i] = sorted_list[i] * multiplier
         return sorted_list
     
 # TESTING

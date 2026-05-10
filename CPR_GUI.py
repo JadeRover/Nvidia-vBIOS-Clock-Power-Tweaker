@@ -20,7 +20,9 @@ class CPR_GUI(tk.Tk):
         self.geometry("600x650")
         self.resizable(False, False)
         
-        self.title("Clock Power Reader alpha 0.2")
+        self.title("Clock Power Reader v1.0")
+        
+        #self.iconbitmap(r'image.ico')
         
         
         # CONFIGURE ROWS for the entire "windows" = for the fixed elements such as tabs, console, info/actions
@@ -200,14 +202,14 @@ class CPR_GUI(tk.Tk):
         action_frame.grid_propagate(False)
         action_frame.grid_columnconfigure(0, weight=10)
         
-        open_button = tk.Button(action_frame, text="OPEN FILE", command=GUI_handler.select_file)
+        open_button = tk.Button(action_frame, text="OPEN FILE", command=self.GUI_handler.select_file)
         open_button.grid(row=0, column=0, padx=4, pady= 4, sticky="nsew")
         
         self.bios_name_entry = tk.Entry(action_frame, state="disabled")
         self.bios_name_entry.grid(row=1, column=0, rowspan=2, padx=4, pady= 4, sticky="nsew")
         
-        save_button = tk.Button(action_frame, text="SAVE AS", state="disabled")
-        save_button.grid(row=4,padx=4, column=0, pady= 4, sticky="nsew")
+        self.save_button = tk.Button(action_frame, text="SAVE AS", command=self.GUI_handler.save_vbios, state="disabled")
+        self.save_button.grid(row=4,padx=4, column=0, pady= 4, sticky="nsew")
         
         #================================================================================#
         
