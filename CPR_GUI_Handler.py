@@ -76,7 +76,8 @@ class GUI_handler:
         
         # CHECK IF DIFFERENT MEM VALUES = IMPORTANT TO NOTIFY THE USER
         self.legal_mem_clocks = True
-        mem_list = self.vbios_parsed.get_MEM_clock_list()
+        mem_list = self.vbios_parsed.MEM_clock_list
+        print(mem_list)
         if mem_list == [] : #NOT VBIOS
             mem_list=[[]]
             self.legal_mem_clocks = False
@@ -225,6 +226,7 @@ class GUI_handler:
         #=====================================================================================================#
      
         # CORE CLOCK SAVING CHECKS
+        multiplier = self.vbios_parsed.clock_multiplier
         
         if self.legal_core_clocks == False:
             self.GUI.console["state"] = "normal"
@@ -243,43 +245,116 @@ class GUI_handler:
             
             self.critical_save_vbios_error = True #Will stop the bios saving completely
         
-        else:
+        else: # IF SAVING IS ALLOWED
             self.GUI.console["state"] = "normal"
-            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE INFORMATION: Custom clock values correctly saved to vbios")
+            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE INFORMATION: Custom Core clock values correctly saved to vbios")
             self.GUI.console["state"] = "disabled"
+         
+        
+        #IMPORTANT :
+            """
+            Each clock entry is 4 bytes and it is in a 2 + 2 bytes fashion
             
+            For turing and above :
+                clock value = custom value / 2 ==> Simpler this way
+                
+                - the last 2 bytes are the clock_value / 2 (little endian)
+                (- the first 2 bytes are the clock_value (little endian))
+            
+            For pascal :
+                - the last 2 bytes are the clock_value / 2 (little endian)
+                (- the first 2 bytes are the (clock_value *2 + 32768))
+            
+            IF the first 2 OG bytes -32768 > 0
+                first 2 bytes must be clock value * 2 + 32768
+            IF the first 2 OG bytes -16384 > 0
+                first 2 bytes must be clock value * 2 + 16384
+            ELSE
+                first 2 bytes must be clock value * 2
+            """
+        
+        
             for offset in self.vbios_parsed.find_v_p_table_offsets():
                 offset_jump = 41
                 da_clock_list = self.modified_clock_list()[0]
     
                 
                 for i in range(len(da_clock_list)):
-                    clock_value = round(da_clock_list[i] * 32768) #So that it is at the correct value 
+                    #clock_value_corrected_multiplier = da_clock_list[i]/multiplier Not needed
+                    clock_value_corrected_multiplier = da_clock_list[i]
                     
-                    # THIS SAVES A VALUE ON THE TWO LAST BYTES !! First 2 bytes are null so could be a problem
-                    temp_vbios[(offset + i*offset_jump) : (offset + 4 + i*offset_jump)] = struct.pack("<I", clock_value)   
+                    clock_value_last_2_bytes = clock_value_corrected_multiplier / 2
                     
-                    # To make sure that the card doesn't freak out, the two first bytes are saved as a cheat value of 0.248960391053*32768/self.vbios_parsed.clock_multiplier
-                    temp_vbios[(offset + i*offset_jump) : (offset + 1 + i*offset_jump)] = struct.pack("<B", 0x45)
+                    read_bytes_2_first_bytes = struct.unpack("<H", temp_vbios[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)])[0]
+                    if read_bytes_2_first_bytes - 32768 > 0:
+                        clock_value_first_2_bytes = clock_value_corrected_multiplier*2+32768
+                    elif read_bytes_2_first_bytes - 16384 > 0:
+                         clock_value_first_2_bytes = clock_value_corrected_multiplier*2+16384
+                    else:
+                        clock_value_first_2_bytes = clock_value_corrected_multiplier*2
+                    
+                    # Saving value on the last 2 bytes
+                    temp_vbios[(offset + 2+ i*offset_jump) : (offset + 4 + i*offset_jump)] = struct.pack("<H", round(clock_value_last_2_bytes-0.2))   
+                    
+                    # Saving value on the first 2 bytes
+                    temp_vbios[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)] = struct.pack("<H", round(clock_value_first_2_bytes-0.2))
   
         #=====================================================================================================#
-
+        
              
         # MEM CLOCK SAVING CHECKS    
  
         if self.legal_mem_clocks == False or int(self.GUI.custom_mem.get()) > 10000:
             self.GUI.console["state"] = "normal"
-            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any mem clock values due to previous error or because value is too high")
+            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any Memory clock values due to previous error or because value is too high")
             self.GUI.console["state"] = "disabled"    
         
         else:
             mem_clock = int(self.GUI.custom_mem.get())
+            
+            """
+            3 different values of 2 bytes each :
+                - first 2 bytes (present only in header) = mem_clock (little endian)
+                - middle 2 bytes (present header + core_clocks) = MORE CALULATIONS NEEDED:
+                    If READ_value - 32768 - 16384 > 0 : middle_value = CUSTOM_value + 32768 + 16384
+                    If READ_value - 32768 > 0 : middle_value = CUSTOM_value + 32768
+                    If READ_value - 16384 > 0 : middle_value = CUSTOM_value + 16384
+                    
+                - last 2 bytes (present header + core_clocks) = mem_clock / 4
+            
+            """
+            
+            self.GUI.console["state"] = "normal"
+            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE INFORMATION: Custom Memory clock value correctly saved to vbios")
+            self.GUI.console["state"] = "disabled"
             #print(mem_clock)
             for img in self.vbios_parsed.MEM_clock_list :
-                temp_vbios[(img[0][1]) : (img[0][1] + 2)] = struct.pack("<H", round(mem_clock))
-                temp_vbios[(img[1][1]) : (img[1][1] + 4)] = struct.pack("<I", round(mem_clock/2*32768))
-                temp_vbios[(img[2][1]) : (img[2][1] + 4)] = struct.pack("<I", round(mem_clock/2*32768))
-
+                
+                read_2_middle_bytes = struct.unpack("<H", temp_vbios[(img[1][1]) : (img[1][1] + 2)])[0]
+                
+                # MIDDLE BYTES CALCULATIONS
+                
+                if read_2_middle_bytes - 32768 - 16384 > 0:
+                    clock_value_middle_2_bytes = mem_clock + 32768 + 16384
+                elif read_2_middle_bytes - 32768 > 0:
+                     clock_value_middle_2_bytes = mem_clock + 32768
+                elif read_2_middle_bytes - 16384 > 0:
+                    clock_value_middle_2_bytes = mem_clock + 16384
+                else:
+                    clock_value_middle_2_bytes = mem_clock #No clue if this is needed probably not
+                    
+                # Other bytes calulations
+                
+                clock_value_first_2_bytes = mem_clock
+                clock_value_last_2_bytes = mem_clock/4
+                
+                temp_vbios[(img[0][1]) : (img[0][1] + 2)] = struct.pack("<H", round(clock_value_first_2_bytes))
+                temp_vbios[(img[1][1]) : (img[1][1] + 2)] = struct.pack("<H", round(clock_value_middle_2_bytes))
+                temp_vbios[(img[1][1]) + 2 : (img[1][1] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+                
+                temp_vbios[(img[2][1]) : (img[2][1] + 2)] = struct.pack("<H", round(clock_value_middle_2_bytes))
+                temp_vbios[(img[2][1]) + 2 : (img[2][1] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+        
         #=====================================================================================================#
         
         #POWER TABLE SAVING
@@ -293,6 +368,9 @@ class GUI_handler:
             limit_power = int(self.GUI.custom_limit.get())
             target_power = int(self.GUI.custom_target.get())
             slider_value = self.GUI.custom_slider.get()
+            self.GUI.console["state"] = "normal"
+            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE INFORMATION: Custom Power values correctly saved to vbios")
+            self.GUI.console["state"] = "disabled"
             #print(self.vbios_parsed.POWER_list)
             for img in self.vbios_parsed.POWER_list:
                 temp_vbios[(img[0][1]) : (img[0][1] + 4)] = struct.pack("<I", target_power*1000)

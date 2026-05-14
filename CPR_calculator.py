@@ -5,10 +5,14 @@ class parsed_data():
         self.data = data
         self.VP_offset_list = self.find_v_p_table_offsets()
         self.VP_core_clock_list = self.get_CORE_clock_list()[0] #simple list
+                
+        self.clock_multiplier = 1
+        self.get_card_architecture()
+        
         self.MEM_clock_list = self.get_MEM_clock_list()
         self.POWER_list = self.get_power_table_list()
         
-        self.clock_multiplier = 1
+        
     
     def find_v_p_table_offsets(self): #MODIFIED TO RETURN SEVERAL OFFSETS
         # This functions looks for the virtual p state table (VP table) that contains the max GPU clocks + mem clocks that 
@@ -93,15 +97,15 @@ class parsed_data():
             # This search is done this way because sometimes 2nd and 3rd memory entry are not the same (few decimals off up  to 200Mhz+ off for Px200 cards)
             i = 45
             while i < 200:
-                entry = struct.unpack("<I", data[offset - i: offset - i + 4])[0]/32768
-                if entry > (MEM_clock_list[0][0] - 50) and entry < (MEM_clock_list[0][0] + 300) :
+                entry = struct.unpack("<H", data[offset - i: offset - i + 2])[0]
+                if entry == struct.unpack("<H", data[offset + 8: offset +8 +2])[0] : # CHECK OF THE LAST 2 BYTES = should be identical
                     
                     #SECOND CHECK doe by checking if first MEM entry is more or less the double (+-0.5Mhz) of the 2nd MEM entry
-                    second_clock = struct.unpack("<h", data[offset - i - 2: offset - i ])[0]
+                    #second_clock = struct.unpack("<H", data[offset - i - 2: offset - i ])[0]
                     
-                    if (entry > second_clock/2 -0.5) and (entry < second_clock/2 +0.5) :
-                        MEM_clock_list.insert(0, (entry, offset - i))
-                        break
+                    #if (struct.unpack("<I", data[offset - i: offset - i + 4])[0] > second_clock/2 -2) and (struct.unpack("<H", data[offset - i+2: offset - i + 4])[0] < second_clock/2 +2) :
+                    MEM_clock_list.insert(0, (struct.unpack("<H", data[offset - i+2: offset - i + 4])[0], offset - i))
+                    break
                 i += 1
             
             #Add the first clock entry

@@ -22,7 +22,7 @@ class CPR_GUI(tk.Tk):
         
         self.title("Clock Power Reader v1.0")
         
-        #self.iconbitmap(r'image.ico')
+        self.iconbitmap(r'image.ico')
         
         
         # CONFIGURE ROWS for the entire "windows" = for the fixed elements such as tabs, console, info/actions
