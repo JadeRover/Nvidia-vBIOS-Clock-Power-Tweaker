@@ -3,6 +3,7 @@ import os
 from tkinter import filedialog as fd
 from CPR_calculator import parsed_data
 from CPR_Checksum import checksummer
+from CPR_DCB import DCBParser
 import struct
 
 class GUI_handler:
@@ -51,16 +52,28 @@ class GUI_handler:
             
             with open(filename, "rb") as f:
                     self.vbios_data = f.read()
-                    self.vbios_parsed = parsed_data(self.vbios_data)
-            
-            #EXECUTE OTHER FUNCTIONS
-            
+
+            # Parse once, but keep the GUI alive for newer unsupported formats.
+            try:
+                self.vbios_parsed = parsed_data(self.vbios_data)
+            except Exception as exc:
+                self.vbios_parsed = None
+                self.GUI.console["state"] = "normal"
+                self.GUI.console.insert(tk.INSERT, "\n\n"+"ERROR : Clock/power parser could not read this VBIOS: " + str(exc))
+                self.GUI.console.insert(tk.INSERT, "\nDisplay/DCB and checksum will still be attempted.")
+                self.GUI.console["state"] = "disabled"
+
             self.checksum_data = checksummer(self.vbios_data)
-            
-            self.load_clocks_to_GUI()
-            self.load_power_to_GUI()
-            self.set_architecture()
-            self.load_checksum_to_GUI()
+
+            if self.vbios_parsed is not None:
+                self.load_clocks_to_GUI()
+                self.load_power_to_GUI()
+                self.set_architecture()
+                self.load_header_to_GUI()
+            else:
+                self.GUI.architecture.set("Unknown")
+            #self.load_checksum_to_GUI()
+            self.load_display_to_GUI()
             
             self.GUI.save_button["state"] = "normal"
             
@@ -71,36 +84,13 @@ class GUI_handler:
         # Loads to stock clocks into the entries of the clock tab of the GUI
         clock_list = self.vbios_parsed.return_sorted_calculated_clock_list()  
         
-        default_mem_value = 0
-        
         
         # CHECK IF DIFFERENT MEM VALUES = IMPORTANT TO NOTIFY THE USER
         self.legal_mem_clocks = True
         mem_list = self.vbios_parsed.MEM_clock_list
-        print(mem_list)
+        #print(mem_list)
         if mem_list == [] : #NOT VBIOS
-            mem_list=[[]]
             self.legal_mem_clocks = False
-        if len(mem_list[0]) < 3:
-            clock_list.pop()
-            clock_list.append(default_mem_value)
-            self.GUI.console["state"] = "normal"
-            self.GUI.console.insert(tk.INSERT, "\n\n"+"ERROR : Memory table is not in the expected format, values will be null")
-            self.GUI.console["state"] = "disabled"
-            
-            #VERY IMPORTANT
-            self.legal_mem_clocks = False
-        else :
-            minimum = mem_list[0][1][0]
-            if minimum > (mem_list[0][2][0] +2):
-                minimum = round(mem_list[0][2][0] * 2) 
-                clock_list.pop()
-                clock_list.append(minimum)
-                self.GUI.console["state"] = "normal"
-                self.GUI.console.insert(tk.INSERT, "\n\n"+"2 different memory clock values found")
-                self.GUI.console.insert(tk.INSERT, " stock vbios set to minimum out of the two")
-                self.GUI.console.insert(tk.INSERT, " saving vbios will overwrite both to the one you set")
-                self.GUI.console["state"] = "disabled"
             
             
         OG_entry_list = [self.GUI.OG_idle, self.GUI.OG_base, self.GUI.OG_boost, self.GUI.OG_max, self.GUI.OG_mem]
@@ -179,7 +169,7 @@ class GUI_handler:
         
         else :
             self.GUI.console["state"] = "normal"
-            self.GUI.console.insert(tk.INSERT, "\n\n"+"ERROR : File is not a (Pascal-Lovelace) vBIOS structure")
+            self.GUI.console.insert(tk.INSERT, "\n\n"+"ERROR : Clock/power tables are not in the expected Pascal-Ada format")
             self.GUI.console["state"] = "disabled" 
             
             self.legal_power = False
@@ -199,6 +189,10 @@ class GUI_handler:
     def set_architecture(self):
         self.GUI.architecture.set(self.vbios_parsed.get_card_architecture())
     
+    """
+    
+    # REMOVED FOR NOW
+    
     def load_checksum_to_GUI(self):
         self.GUI.checksum_entry["state"] = "normal"
         self.GUI.checksum_entry.delete(0, "end")
@@ -207,6 +201,30 @@ class GUI_handler:
             self.GUI.checksum_entry.insert(0, " - ")
             
         self.GUI.checksum_entry["state"] = "disabled"  
+    """
+    
+    def load_header_to_GUI(self):
+        header_list = self.vbios_parsed.header_list
+        
+        if header_list == None:
+            self.GUI.header.set("None")
+            self.GUI.header_radio_remove.config(state="disabled")
+            self.GUI.header_radio_keep.config(state="disabled")
+        else:
+            self.GUI.header.set("Remove")
+            self.GUI.header_radio_remove.config(state="normal")
+            self.GUI.header_radio_keep.config(state="normal")
+    
+    def load_display_to_GUI(self):
+        """Load Pascal-Ada/Blackwell DCB display configuration into the Display / DCB tab."""
+        try:
+            summary = DCBParser(self.vbios_data).summarize(include_duplicates=False)
+        except Exception as exc:
+            summary = "Display/DCB parser error: " + str(exc)
+        self.GUI.display_config_text["state"] = "normal"
+        self.GUI.display_config_text.delete("1.0", tk.END)
+        self.GUI.display_config_text.insert(tk.INSERT, summary)
+        self.GUI.display_config_text["state"] = "disabled"
     
     def save_vbios(self):
         """
@@ -226,7 +244,11 @@ class GUI_handler:
         #=====================================================================================================#
      
         # CORE CLOCK SAVING CHECKS
-        multiplier = self.vbios_parsed.clock_multiplier
+        
+        # REWORKED FOR V1.2.4 !!
+        multiplier = self.vbios_parsed.clock_multiplier*2
+        
+        index_of_OF_vp = 0
         
         if self.legal_core_clocks == False:
             self.GUI.console["state"] = "normal"
@@ -299,12 +321,41 @@ class GUI_handler:
                     # Saving value on the first 2 bytes
                     temp_vbios[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)] = struct.pack("<H", round(clock_value_first_2_bytes-0.2))
   
+        
+        # "0F" VP profile saving clocks, NEW TO V1.2.4 !!
+        # The first limit clock must be set above the max clock, that's it, nothing too hard
+        # The second limit clock = first limit clock - 50 Mhz
+        # The third limit clock = first limit clock - 100 Mhz
+  
+        # This is completely arbitrary, since the second and third limit don't seem to do anything anyway...
+        
+        # Look for the "0xF" ID of the VP:
+        
+            dict_list = ["first_limit_clock", "second_limit_clock", "third_limit_clock"]
+            
+            
+            
+            for VP_table in self.vbios_parsed.VP_profile_list:
+                i = 0   
+                
+                while i<10:
+                    if VP_table[i]["ID"] == "0xf":
+                        break
+                    i += 1
+                
+                index_of_OF_vp = i
+                
+                for j in range(3):
+                    offset = VP_table[i][dict_list[j]][1]
+                    temp_vbios[offset:offset+2] = struct.pack("<H", round((int(self.GUI.custom_max.get())-j*50)/multiplier))
+               
+            
         #=====================================================================================================#
         
              
         # MEM CLOCK SAVING CHECKS    
  
-        if self.legal_mem_clocks == False or int(self.GUI.custom_mem.get()) > 10000:
+        if self.legal_mem_clocks == False or int(self.GUI.custom_mem.get()) > 10000 or int(self.GUI.custom_mem.get()) == -1:
             self.GUI.console["state"] = "normal"
             self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any Memory clock values due to previous error or because value is too high")
             self.GUI.console["state"] = "disabled"    
@@ -328,33 +379,82 @@ class GUI_handler:
             self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE INFORMATION: Custom Memory clock value correctly saved to vbios")
             self.GUI.console["state"] = "disabled"
             #print(mem_clock)
-            for img in self.vbios_parsed.MEM_clock_list :
+            
+            #print(self.vbios_parsed.MEM_clock_list)
+            
+            # COMPLETE REWRITE OF THIS SECTION IN v1.24 !!
+            
+            for i in range(len(self.vbios_parsed.MEM_clock_list)) :
                 
-                read_2_middle_bytes = struct.unpack("<H", temp_vbios[(img[1][1]) : (img[1][1] + 2)])[0]
+                value = self.vbios_parsed.MEM_clock_list[i]
+                #===========
+                # FIRST EDIT = CHANGE THE MEM CLOCK FOUND IN THE CORE CLOCK VALUES
+                #===========
                 
-                # MIDDLE BYTES CALCULATIONS
+                # The program expects there two be :
+                # - 2 first bytes (hard to read) -> applies algorithm
+                # - 2 last bytes (easy to read)
                 
-                if read_2_middle_bytes - 32768 - 16384 > 0:
-                    clock_value_middle_2_bytes = mem_clock + 32768 + 16384
-                elif read_2_middle_bytes - 32768 > 0:
-                     clock_value_middle_2_bytes = mem_clock + 32768
-                elif read_2_middle_bytes - 16384 > 0:
-                    clock_value_middle_2_bytes = mem_clock + 16384
-                else:
-                    clock_value_middle_2_bytes = mem_clock #No clue if this is needed probably not
-                    
-                # Other bytes calulations
+                # 
+                
+                # FIRST BYTES CALCULATIONS
+                
+                clock_value_first_2_bytes = self.vbios_parsed.calculate_correct_mem_data(mem_clock, temp_vbios, value[1])
+                
+
+                # Last 2 bytes is easy...
+                clock_value_last_2_bytes = mem_clock/(4)
+                
+                # Write the clocks at the correct adress
+                temp_vbios[(value[1]) : (value[1] + 2)] = struct.pack("<H", round(clock_value_first_2_bytes))
+                temp_vbios[(value[1] + 2) : (value[1] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+                
+                
+                #===========
+                # SECOND EDIT = CHANGE THE MEM CLOCK FOUND IN THE 0F VP PROFILE
+                #===========        
+                
+                # This clock is in 3*2 bytes:
+                # - first 2 : full clock value little endian (same as the one found in GUI, DDR format)
+                # - middle 2 : coded clock value little endian
+                # - last 2 : half clock value little endian
+                
+                
+                selected_VP_profile = self.vbios_parsed.VP_profile_list[i][index_of_OF_vp]
+                
+                mem_data = selected_VP_profile["mem_clock_long"]
                 
                 clock_value_first_2_bytes = mem_clock
-                clock_value_last_2_bytes = mem_clock/4
+                clock_value_middle_2_bytes = self.vbios_parsed.calculate_correct_mem_data(mem_clock, temp_vbios, mem_data[1])
+                clock_value_last_2_bytes = mem_clock/(4)
+                                        
+                temp_vbios[(mem_data[1]-2) : (mem_data[1])] = struct.pack("<H", round(clock_value_first_2_bytes))
+                temp_vbios[(mem_data[1]) : (mem_data[1]+2)] = struct.pack("<H", round(clock_value_middle_2_bytes))
+                temp_vbios[(mem_data[1]+2) : (mem_data[1]+4)] = struct.pack("<H", round(clock_value_last_2_bytes))
                 
-                temp_vbios[(img[0][1]) : (img[0][1] + 2)] = struct.pack("<H", round(clock_value_first_2_bytes))
-                temp_vbios[(img[1][1]) : (img[1][1] + 2)] = struct.pack("<H", round(clock_value_middle_2_bytes))
-                temp_vbios[(img[1][1]) + 2 : (img[1][1] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+                #===========
+                # THIRD EDIT = CHANGE THE MEM CLOCK FOUND IN THE 0F VP FOOTER
+                #===========        
                 
-                temp_vbios[(img[2][1]) : (img[2][1] + 2)] = struct.pack("<H", round(clock_value_middle_2_bytes))
-                temp_vbios[(img[2][1]) + 2 : (img[2][1] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
-        
+                # The program expects there two be :
+                # - 2 first bytes (hard to read) -> applies algorithm
+                # - 2 last bytes (easy to read)
+                
+                # 
+                
+                # FIRST BYTES CALCULATIONS
+                
+                clock_value_first_2_bytes = self.vbios_parsed.calculate_correct_mem_data(mem_clock, temp_vbios, value[1])
+                
+
+                # Last 2 bytes is easy...
+                clock_value_last_2_bytes = mem_clock/(4)
+                
+                for footer in self.vbios_parsed.VP_footer_list[i]:
+                    if footer[0] == 15: #Only applies to the 0F profile aka profile 15
+                        temp_vbios[(footer[2]) : (footer[2] + 2)] = struct.pack("<H", round(clock_value_first_2_bytes))
+                        temp_vbios[(footer[2] + 2) : (footer[2] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+                
         #=====================================================================================================#
         
         #POWER TABLE SAVING
@@ -384,8 +484,21 @@ class GUI_handler:
 
         # FIX THE CHECKSUM
 
-        temp_vbios = self.checksum_data.fix_checksum_of_vbios(temp_vbios)
+        temp_vbios = self.checksum_data.fix_checksum_of_vbios(temp_vbios, self.vbios_parsed.VP_offset_list)
+        
+        # Fixes first the VP section image (new feature)
+        # Then fixes the checksum of the entire vbios
 
+
+        #=====================================================================================================# 
+        
+        # REMOVING THE HEADER IF NEED BE
+        
+        #Important, you must go backwards !!
+        if self.GUI.header.get() == "Remove":
+            for i in range(1, len(self.vbios_parsed.header_list)+1) :
+                adress = self.vbios_parsed.header_list[-i]
+                temp_vbios = temp_vbios[:adress[0]] + temp_vbios[adress[1]:]
 
         #=====================================================================================================# 
         

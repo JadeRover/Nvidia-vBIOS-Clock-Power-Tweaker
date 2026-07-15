@@ -17,12 +17,15 @@ class CPR_GUI(tk.Tk):
         
         ###
         
-        self.geometry("600x650")
+        self.geometry("820x720")
         self.resizable(False, False)
         
-        self.title("Clock Power Reader v1.0")
+        self.title("Clock Power Reader v1.3.4")
         
-        self.iconbitmap(r'image.ico')
+        try:
+            self.iconbitmap(self.resource_path('favicon.ico'))
+        except Exception:
+            pass
         
         
         # CONFIGURE ROWS for the entire "windows" = for the fixed elements such as tabs, console, info/actions
@@ -178,6 +181,21 @@ class CPR_GUI(tk.Tk):
                   ).grid(column = 0, columnspan=5, row = 8,padx=30, pady=3, sticky="ew")
         
         #================================================================================#
+
+        # DEFINE GUI ELEMENTS OF THE DISPLAY / DCB TAB
+
+        display_tab = ttk.Frame(tab_control)
+        tab_control.add(display_tab, text ='  Display / DCB  ')
+        display_tab.grid_columnconfigure(0, weight=1)
+        display_tab.grid_rowconfigure(0, weight=1)
+        display_tab.grid_propagate(False)
+
+        self.display_config_text = scrolledtext.ScrolledText(display_tab, wrap=tk.NONE, height=18)
+        self.display_config_text.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.display_config_text.insert(tk.INSERT, "Open a vBIOS to view Pascal-Ada/Blackwell DCB display configuration.\nInternal eDP connector type is shown as 0x47.")
+        self.display_config_text["state"] = "disabled"
+        
+        #================================================================================#
         
         # CONSOLE (bottom left of the windows)
         
@@ -218,23 +236,45 @@ class CPR_GUI(tk.Tk):
         structure_frame = tk.Frame(self, bg="lightgrey", bd=3, relief="raised")
         structure_frame.grid(row=1, column=1, padx=3, pady=3, sticky="nsew")
         structure_frame.grid_propagate(False)
-        structure_frame.grid_columnconfigure(0, weight=50)
-        structure_frame.grid_columnconfigure(1, weight=50)
+        structure_frame.grid_columnconfigure(0, weight=33)
+        structure_frame.grid_columnconfigure(1, weight=33)
+        structure_frame.grid_columnconfigure(2, weight=33)
         
         structure_label = tk.Label(structure_frame, text='vBIOS ARCHITECTURE :')
-        structure_label.grid(row=0, column=0, columnspan=2, sticky='ew')
+        structure_label.grid(row=0, column=0, columnspan=3, sticky='ew')
         
         self.architecture = tk.StringVar(self)        
         
         ttk.Radiobutton(structure_frame, text = "Pascal", variable = self.architecture,value = "Pascal", state="disabled").grid(row=1, column=0, padx=2, pady=5, sticky='ew')
-        ttk.Radiobutton(structure_frame, text = "Turing & newer", variable = self.architecture,value = "Turing & newer", state="disabled").grid(row=1, column=1, padx=2, pady=5, sticky='ew')
+        ttk.Radiobutton(structure_frame, text = "Turing+", variable = self.architecture,value = "Turing & newer", state="disabled").grid(row=1, column=1, padx=2, pady=5, sticky='ew')
+        ttk.Radiobutton(structure_frame, text = "Blackwell", variable = self.architecture,value = "Blackwell", state="disabled").grid(row=1, column=2, padx=2, pady=5, sticky='ew')
+
+        # CHECKSUM section is removed -> Replaced by the "HEADER" section might add back later...
         
+        """
         checksum_label = tk.Label(structure_frame, text='CHECKSUM (hex):')
-        checksum_label.grid(row=2, column=0, columnspan=2, pady=5, sticky='ew')
-        
+        checksum_label.grid(row=2, column=0, columnspan=3, pady=5, sticky='ew')
+
         self.checksum_entry = tk.Entry(structure_frame, state="disabled")
-        self.checksum_entry.grid(row=3, column=0, columnspan=2, padx=4, pady= 2, sticky="nsew") 
+        self.checksum_entry.grid(row=3, column=0, columnspan=3, padx=4, pady= 2, sticky="nsew") 
+        """
         
+        # HEADER sectioon :
+        
+        self.header = tk.StringVar(self)
+        self.header.set("Remove")
+        
+        header_label = tk.Label(structure_frame, text='vBIOS HEADER :')
+        header_label.grid(row=2, column=0, columnspan=3, pady=5, sticky='ew')
+        
+        # 2 OPTIONS : either none is found = text saying none is found
+        #             one is found : create radio buttons to decide on weither to keep the header or not...
+        
+        self.header_radio_keep = ttk.Radiobutton(structure_frame, text = "Keep", variable = self.header,value = "Keep", state="disabled")
+        self.header_radio_keep.grid(row=3, column=0, padx=2, pady=5, sticky='ew')
+        self.header_radio_remove = ttk.Radiobutton(structure_frame, text = "Remove", variable = self.header,value = "Remove", state="disabled")
+        self.header_radio_remove.grid(row=3, column=1, padx=2, pady=5, sticky='ew')
+        ttk.Radiobutton(structure_frame, text = "None found", variable = self.header,value = "None", state="disabled").grid(row=3, column=2, padx=2, pady=5, sticky='ew')
         #================================================================================#
         
         # CODE for the UI elements #
