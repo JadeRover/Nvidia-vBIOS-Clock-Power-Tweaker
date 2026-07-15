@@ -17,12 +17,46 @@ Find the latest version in the releases and follow the instructions on how to ru
 
 Since it is written in python, you can either execute the python code directly or run a precompiled exe.
 
-## Screenshots :
-The vbios in the picture is my personnal 1060M MXM vbios that I edited by hand to change power limits + enable power slider.
+**COMPATIBILITY :**
 
-<img width="445" height="507" alt="image" src="https://github.com/user-attachments/assets/28d65235-4dff-493f-9925-d296ab4e94ff" />
+Latest version, v1.3.4 can now fully edit the vbios of most pascal mobile cards (turing and above still fail to load custom vbios due to extra security checks).
+List of cards fully compatible :
 
-<img width="448" height="508" alt="image" src="https://github.com/user-attachments/assets/d2f233a8-ac10-430c-aba0-06d872b87d7e" />
+P3000, P4000, P5000, P3200, P4200 & P5200
+GTX 1050, 1050ti, 1060, 1070 & 1080
+Cards not fully compatible:
+
+P1000, P2000, mx150, mx250, P600m -> power table is still not understood yet, clock editing works
+
+**RECOMMENDED SETTINGS :**
+
+Since you need a BIOS flasher to flash the custom vbios, I recommend that you read the vbios already on your card and then edit it with the program.
+
+The program defaults to removing the vbios header, I strongly recommend to do this, keeping the vbios header might result in a bricked card. You can try keeping the header, if you get error 43 flash the custom vbios without a header.
+
+Core clocks editing works great, keep in mind that the card won't go exactly to your "max core clock", it will default to the closest and lowest "allowed" core clock value.
+Example :
+-> set max core to 1905Mhz -> under load card will boost to a maximum of 1898Mhz since that's the nearest value
+
+Anything above 1911Mhz isn't applied and the card will boost to a maxium of 1911Mhz.
+
+Memory clocks editing is still hit or miss right now. Same as for core clocks, memory clocks will go to the nearest "allowed" memory clock. For instance, testing on a P4000m went like this :
+
+stock memory of 3000Mhz -> set 4000Mhz and the card will boost to max 3500Mhz -> set to 4500Mhz and the card does go to 4500Mhz...
+
+You can try different memory clock values and see what works...
+
+## Screenshots of V1.3.4:
+The vbios shown is my personal P4000m OC vbios that enabled me to take the first place in 3D mark time spy =D
+
+https://www.3dmark.com/search#advanced?test=spy%20P&cpuId=&gpuId=1273&gpuCount=1&gpuType=ALL&deviceType=ALL&storageModel=ALL&modelId=&showRamDisks=false&memoryChannels=0&country=&scoreType=graphicsScore&hofMode=false&showInvalidResults=false&freeParams=&minGpuCoreClock=&maxGpuCoreClock=&minGpuMemClock=&maxGpuMemClock=&minCpuClock=&maxCpuClock=
+
+<img width="1019" height="932" alt="image" src="https://github.com/user-attachments/assets/6b4da0d9-e550-4a2c-951b-4583168fcd26" />
+
+<img width="1019" height="934" alt="image" src="https://github.com/user-attachments/assets/302fb96b-9de4-4561-9d4e-8fac7af945ff" />
+
+<img width="1022" height="936" alt="image" src="https://github.com/user-attachments/assets/2a4d9646-c348-407c-8c62-b396edb2dfce" />
+
 
 ## How it works
 The tool uses recursive algorithms to find the data offsets for the different vBIOS tables that contain the info we want to read + edit.
@@ -31,7 +65,7 @@ This means that there is wide compatibility among the different generations of G
 On the technical level, I explaine some of the code in comments in the files, the file that contains all the algorithms is the "_calcuator.py". Some of it is guess work (for some offset calculations).
 
 ## Current state/compatibility
-The tool saves your edits and also fixes the checksum. Also fixes the checksum for "dual image" vbios such as RTX3000. However my personal testing of flashing a custom vbios to an RTX3000 kept bricking the card ! No compatibiity for flashing Turing and newer cards.
+The tool saves your edits and also fixes the checksum. Also fixes the checksum for "dual image" vbios such as RTX3000. However my personal testing of flashing a custom vbios to my RTX3000 kept bricking the card ! No compatibiity for flashing Turing and newer cards.
 
 To calculate the clock values the tool applies some rounding. Saving a custom vbios then opening it again might have clock values with +-1 Mhz.
 
@@ -41,8 +75,8 @@ Compatibility :
 
 ## TO-DO
 - Add a thermal tab to edit thermal limits
-- Add a display table tab to read and edit the display outputs of the GPU : DP_A, DP_B, DP_C, DP_D, etc
-- Add more compatibility for the P6 gpus as well as maybe Blackwell GPUs (should be possible)
+- Add a display table tab to read and edit the display outputs of the GPU : DP_A, DP_B, DP_C, DP_D, etc -> Done thanks to ssj92's work !!
+- Add more compatibility for the P6 gpus as well as maybe Blackwell GPUs (should be possible) -> Will come very soon as a much better understanding of the virtual p state cable can enable some editing
 - Compatibility for desktop cards (more variants than mobile, this will take time)
 
 ## Sources
