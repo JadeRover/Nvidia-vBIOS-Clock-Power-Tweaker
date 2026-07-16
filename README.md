@@ -15,7 +15,7 @@ The app might crash if you feed it an incompatible vBIOS aka a vBIOS that I have
 
 Find the latest version in the releases : https://github.com/JadeRover/Nvidia-vBIOS-Clock-Power-Tweaker/releases and follow the instructions on how to run the program.
 
-**_ONLY VERSIONS STARTING FROM V1.3.4 WORK !! PRIOR VERSIONS FAIL TO CREATE VALID VBIOS_**
+⚠️ **_ONLY VERSIONS STARTING FROM V1.3.4 WORK !! PRIOR VERSIONS FAIL TO CREATE VALID VBIOS_** ⚠️
 
 Since it is written in python, you can either execute the python code directly or run a precompiled exe.
 
