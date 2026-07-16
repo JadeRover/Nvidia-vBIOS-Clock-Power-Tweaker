@@ -26,6 +26,7 @@ List of cards fully compatible :
 
 P3000, P4000, P5000, P3200, P4200 & P5200
 GTX 1050, 1050ti, 1060, 1070 & 1080
+
 Cards not fully compatible:
 
 P1000, P2000, mx150, mx250, P600m -> power table is still not understood yet, clock editing works
