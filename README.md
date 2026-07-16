@@ -15,9 +15,11 @@ The app might crash if you feed it an incompatible vBIOS aka a vBIOS that I have
 
 Find the latest version in the releases and follow the instructions on how to run the program.
 
+**_ONLY VERSIONS STARTING FROM V1.3.4 WORK !! PRIOR VERSIONS FAIL TO CREATE VALID VBIOS_**
+
 Since it is written in python, you can either execute the python code directly or run a precompiled exe.
 
-**COMPATIBILITY :**
+# COMPATIBILITY :
 
 Latest version, v1.3.4 can now fully edit the vbios of most pascal mobile cards (turing and above still fail to load custom vbios due to extra security checks).
 List of cards fully compatible :
@@ -28,7 +30,7 @@ Cards not fully compatible:
 
 P1000, P2000, mx150, mx250, P600m -> power table is still not understood yet, clock editing works
 
-**RECOMMENDED SETTINGS :**
+# RECOMMENDED SETTINGS :
 
 Since you need a BIOS flasher to flash the custom vbios, I recommend that you read the vbios already on your card and then edit it with the program.
 
