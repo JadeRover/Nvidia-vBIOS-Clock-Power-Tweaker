@@ -13,7 +13,7 @@ The app might crash if you feed it an incompatible vBIOS aka a vBIOS that I have
 
 ## Using the tool
 
-Find the latest version in the releases : https://github.com/JadeRover/Nvidia-vBIOS-Clock-Power-Tweaker/releases and follow the instructions on how to run the program.
+Find the latest version in the [releases](https://github.com/JadeRover/Nvidia-vBIOS-Clock-Power-Tweaker/releases) and follow the instructions on how to run the program.
 
 ⚠️ **_ONLY VERSIONS STARTING FROM V1.3.4 WORK !! PRIOR VERSIONS FAIL TO CREATE VALID VBIOS_** ⚠️
 
@@ -52,7 +52,8 @@ You can try different memory clock values and see what works...
 ## Screenshots of V1.3.4:
 The vbios shown is my personal P4000m OC vbios that enabled me to take the first place in 3D mark time spy =D
 
-https://www.3dmark.com/search#advanced?test=spy%20P&cpuId=&gpuId=1273&gpuCount=1&gpuType=ALL&deviceType=ALL&storageModel=ALL&modelId=&showRamDisks=false&memoryChannels=0&country=&scoreType=graphicsScore&hofMode=false&showInvalidResults=false&freeParams=&minGpuCoreClock=&maxGpuCoreClock=&minGpuMemClock=&maxGpuMemClock=&minCpuClock=&maxCpuClock=
+[3D mark Time Spy result]([https://www.genome.gov/](https://www.3dmark.com/search#advanced?test=spy%20P&cpuId=&gpuId=1273&gpuCount=1&gpuType=ALL&deviceType=ALL&storageModel=ALL&modelId=&showRamDisks=false&memoryChannels=0&country=&scoreType=graphicsScore&hofMode=false&showInvalidResults=false&freeParams=&minGpuCoreClock=&maxGpuCoreClock=&minGpuMemClock=&maxGpuMemClock=&minCpuClock=&maxCpuClock=))
+
 
 <img width="1019" height="932" alt="image" src="https://github.com/user-attachments/assets/6b4da0d9-e550-4a2c-951b-4583168fcd26" />
 
