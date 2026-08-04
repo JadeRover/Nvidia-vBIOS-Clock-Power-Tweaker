@@ -21,15 +21,13 @@ Since it is written in python, you can either execute the python code directly o
 
 # Compatibility :
 
-Latest version, v1.3.4 can now fully edit the vbios of most pascal mobile cards (turing and above still fail to load custom vbios due to extra security checks).
+Latest version, v1.4 can now fully edit the vbios of most pascal mobile & desktop cards (turing and above still fail to load custom vbios due to extra security checks).
 List of cards fully compatible :
 
-P3000, P4000, P5000, P3200, P4200 & P5200
-GTX 1050, 1050ti, 1060, 1070 & 1080
-
-Cards not fully compatible:
-
-P1000, P2000, mx150, mx250, P600m -> power table is still not understood yet, clock editing works
+- P3000, P4000, P5000, P3200, P4200 & P5200
+- GTX 1050, 1050ti, 1060, 1070 & 1080
+- P1000, P2000, mx150, mx250, P600m
+- Tesla P6 & p106m can be edited but they are picky about the VP profile... Testing needed !
 
 # Recommended settings :
 
@@ -49,17 +47,20 @@ stock memory of 3000Mhz -> set 4000Mhz and the card will boost to max 3500Mhz ->
 
 You can try different memory clock values and see what works...
 
-## Screenshots of V1.3.4:
+## Screenshots of V1.4:
 The vbios shown is my personal P4000m OC vbios that enabled me to take the first place in 3D mark time spy =D
 
 [3D mark Time Spy result](https://www.3dmark.com/search#advanced?test=spy%20P&cpuId=&gpuId=1273&gpuCount=1&gpuType=ALL&deviceType=ALL&storageModel=ALL&modelId=&showRamDisks=false&memoryChannels=0&country=&scoreType=graphicsScore&hofMode=false&showInvalidResults=false&freeParams=&minGpuCoreClock=&maxGpuCoreClock=&minGpuMemClock=&maxGpuMemClock=&minCpuClock=&maxCpuClock=)
 
+<img width="818" height="755" alt="image" src="https://github.com/user-attachments/assets/7a225cf5-95f2-46c0-91c3-d50f1ee8f38f" />
 
-<img width="1019" height="932" alt="image" src="https://github.com/user-attachments/assets/6b4da0d9-e550-4a2c-951b-4583168fcd26" />
+<img width="819" height="755" alt="image" src="https://github.com/user-attachments/assets/7e33bac2-8906-47c5-a97c-91e9225593b0" />
 
-<img width="1019" height="934" alt="image" src="https://github.com/user-attachments/assets/302fb96b-9de4-4561-9d4e-8fac7af945ff" />
+<img width="813" height="752" alt="image" src="https://github.com/user-attachments/assets/694ee607-2956-43e5-9316-17c8abfcd94b" />
 
-<img width="1022" height="936" alt="image" src="https://github.com/user-attachments/assets/2a4d9646-c348-407c-8c62-b396edb2dfce" />
+<img width="818" height="754" alt="image" src="https://github.com/user-attachments/assets/27d191b9-23bd-4ecd-9e72-e8dcbe5ecb87" />
+
+<img width="818" height="756" alt="image" src="https://github.com/user-attachments/assets/ad2a7635-e193-46eb-a607-8aab93d4291b" />
 
 
 ## How it works
@@ -74,14 +75,14 @@ The tool saves your edits and also fixes the checksum. Also fixes the checksum f
 To calculate the clock values the tool applies some rounding. Saving a custom vbios then opening it again might have clock values with +-1 Mhz.
 
 Compatibility :
-- **ONLY Mobile GPUs** are supported right now. I had a look at desktop cards and they have similar architecture to the quadro P6 cards. Implementation should be possible in the future.
-- Most mobile cards that are tested from the Pascal to Ada Lovelace area are supported, I haven't checked the "MXOOO" cards yet.
+- **Only PASCAL GPUs** are supported right now, mobile & desktop. You can make a custom vbios for turing and newer cards but the card will reject the vbios...
 
 ## TO-DO
 - Add a thermal tab to edit thermal limits
 - Add a display table tab to read and edit the display outputs of the GPU : DP_A, DP_B, DP_C, DP_D, etc -> Done thanks to ssj92's work !!
-- Add more compatibility for the P6 gpus as well as maybe Blackwell GPUs (should be possible) -> Will come very soon as a much better understanding of the virtual p state cable can enable some editing
-- Compatibility for desktop cards (more variants than mobile, this will take time)
+- Add more compatibility for the P6 gpus as well as maybe Blackwell GPUs (should be possible) -> Will come very soon as a much better understanding of the virtual p state cable can enable some editing -> Done !
+- Compatibility for desktop cards (more variants than mobile, this will take time) -> Done !
+- Add tab for eediting voltages of the card, however I doubt this will be achievable...
 
 ## Sources
 There is little info online of all the vbios data tables that containt the info we want to get to. Here are my sources that allowed me to understand some of these structures. 
