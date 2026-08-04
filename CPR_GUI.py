@@ -20,7 +20,7 @@ class CPR_GUI(tk.Tk):
         self.geometry("820x720")
         self.resizable(False, False)
         
-        self.title("Clock Power Reader v1.3.4")
+        self.title("Clock Power Reader v1.4")
         
         try:
             self.iconbitmap(self.resource_path('favicon.ico'))
@@ -196,18 +196,38 @@ class CPR_GUI(tk.Tk):
         self.display_config_text["state"] = "disabled"
         
         #================================================================================#
+
+        # DEFINE GUI ELEMENTS OF THE Virtual P state table
+
+        VP_tab = ttk.Frame(tab_control)
+        tab_control.add(VP_tab, text ='  Virtual P state profiles')
+        VP_tab.grid_columnconfigure(0, weight=1)
+        VP_tab.grid_rowconfigure(0, weight=1)
+        VP_tab.grid_propagate(False)
+
+        self.VP_text = scrolledtext.ScrolledText(VP_tab, wrap=tk.NONE, height=18)
+        self.VP_text.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.VP_text.insert(tk.INSERT, "Open a vBIOS to read Virtual P state profiles from the VP table.\nVirtual P state footers are shown at the end.")
+        self.VP_text["state"] = "disabled"
+        
+        
+        #================================================================================#
         
         # CONSOLE (bottom left of the windows)
+        
+        console_color_main = "#b8d4db"
+        console_color_secondary = "#99c5d1"
         
         console_frame = tk.Frame(self, bg="white", bd=3, relief="raised")
         console_frame.grid(row=1, rowspan=2, column=0, sticky="nsew", padx=3, pady=3)
         console_frame.pack_propagate(False)
         console_frame.grid_propagate(False)
         
-        console_label = tk.Label(console_frame, text="CONSOLE - OPERATIONS/ERRORS")
+        console_label = tk.Label(console_frame, text="CONSOLE - OPERATIONS/ERRORS", bg=console_color_secondary)
         console_label.pack(side='top', fill="x")
         
-        self.console=scrolledtext.ScrolledText(console_frame)
+        self.console=scrolledtext.ScrolledText(console_frame, wrap= tk.WORD)
+        self.console["bg"] = console_color_main
         self.console.pack(side="top", fill='both', expand=0)
         self.console.insert(tk.INSERT, "Errors and operations \nwill appear in this window.")
         self.console["state"] = "disabled" #Annoying but works for now
@@ -215,39 +235,59 @@ class CPR_GUI(tk.Tk):
         #================================================================================#
         
         # ACTION BUTTONS
-        action_frame = tk.Frame(self, bg="lightgrey", bd=3, relief="raised")
+        action_color_main = "#d6b994"
+        action_color_secondary = "#ebb56e"
+        
+        action_frame = tk.Frame(self, bg=action_color_main, bd=3, relief="raised")
         action_frame.grid(row=2, column=1, padx=3, pady=3, sticky="nsew")
         action_frame.grid_propagate(False)
         action_frame.grid_columnconfigure(0, weight=10)
         
-        open_button = tk.Button(action_frame, text="OPEN FILE", command=self.GUI_handler.select_file)
+        open_button = tk.Button(action_frame, text="OPEN FILE", command=self.GUI_handler.select_file, bg=action_color_secondary)
         open_button.grid(row=0, column=0, padx=4, pady= 4, sticky="nsew")
         
-        self.bios_name_entry = tk.Entry(action_frame, state="disabled")
+        self.bios_name_entry = tk.Entry(action_frame, state="disabled", disabledforeground='black')
         self.bios_name_entry.grid(row=1, column=0, rowspan=2, padx=4, pady= 4, sticky="nsew")
         
-        self.save_button = tk.Button(action_frame, text="SAVE AS", command=self.GUI_handler.save_vbios, state="disabled")
+        self.save_button = tk.Button(action_frame, text="SAVE AS", command=self.GUI_handler.save_vbios, state="disabled", bg=action_color_secondary)
         self.save_button.grid(row=4,padx=4, column=0, pady= 4, sticky="nsew")
         
         #================================================================================#
         
         # STRUCTURE windows
         
-        structure_frame = tk.Frame(self, bg="lightgrey", bd=3, relief="raised")
+        structure_color_main = "#c0edcf"
+        structure_color_secondary = "#9cd9b1"
+        structure_color_tertiary = "#80c48c"
+        
+        structure_frame = tk.Frame(self, bg=structure_color_main, bd=3, relief="raised")
         structure_frame.grid(row=1, column=1, padx=3, pady=3, sticky="nsew")
         structure_frame.grid_propagate(False)
-        structure_frame.grid_columnconfigure(0, weight=33)
-        structure_frame.grid_columnconfigure(1, weight=33)
-        structure_frame.grid_columnconfigure(2, weight=33)
+        structure_frame.grid_columnconfigure(0, weight=50)
+        structure_frame.grid_columnconfigure(1, weight=50)
+        structure_frame.grid_columnconfigure(2, weight=50)
+        structure_frame.grid_columnconfigure(3, weight=50)
+        structure_frame.grid_columnconfigure(4, weight=50)
+        structure_frame.grid_columnconfigure(5, weight=50)
         
-        structure_label = tk.Label(structure_frame, text='vBIOS ARCHITECTURE :')
-        structure_label.grid(row=0, column=0, columnspan=3, sticky='ew')
+        structure_label = tk.Label(structure_frame, text='vBIOS GENERATION:', bg=structure_color_tertiary)
+        structure_label.grid(row=0, column=0, columnspan=3, sticky='ew', padx=1)
         
-        self.architecture = tk.StringVar(self)        
+        structure_label = tk.Label(structure_frame, text='vBIOS PLATEFORM:', bg=structure_color_tertiary)
+        structure_label.grid(row=0, column=3, columnspan=3, sticky='ew', padx=1)
         
-        ttk.Radiobutton(structure_frame, text = "Pascal", variable = self.architecture,value = "Pascal", state="disabled").grid(row=1, column=0, padx=2, pady=5, sticky='ew')
-        ttk.Radiobutton(structure_frame, text = "Turing+", variable = self.architecture,value = "Turing & newer", state="disabled").grid(row=1, column=1, padx=2, pady=5, sticky='ew')
-        ttk.Radiobutton(structure_frame, text = "Blackwell", variable = self.architecture,value = "Blackwell", state="disabled").grid(row=1, column=2, padx=2, pady=5, sticky='ew')
+        self.architecture_var = tk.StringVar()
+        
+        self.architecture = tk.Entry(structure_frame, textvariable=self.architecture_var, state='disabled',borderwidth=0, justify="right", disabledbackground=structure_color_secondary, disabledforeground='black')
+        #self.architecture.insert(0, "Unknown")
+        self.architecture.grid(row=1, column=0, columnspan=3, sticky='ew', padx=1,pady=3)
+        
+        self.plateform_var = tk.StringVar()
+        
+        self.plateform = tk.Entry(structure_frame, textvariable=self.plateform_var, state='disabled',borderwidth=0, disabledbackground=structure_color_secondary, disabledforeground='black')
+        #self.plateform.insert(0, "Unknown")
+        self.plateform.grid(row=1, column=3, columnspan=3, sticky='ew', padx=1,pady=3)
+
 
         # CHECKSUM section is removed -> Replaced by the "HEADER" section might add back later...
         
@@ -264,17 +304,17 @@ class CPR_GUI(tk.Tk):
         self.header = tk.StringVar(self)
         self.header.set("Remove")
         
-        header_label = tk.Label(structure_frame, text='vBIOS HEADER :')
-        header_label.grid(row=2, column=0, columnspan=3, pady=5, sticky='ew')
+        header_label = tk.Label(structure_frame, text='vBIOS HEADER :', bg=structure_color_tertiary)
+        header_label.grid(row=2, column=0, columnspan=6, pady=5, sticky='ew')
         
         # 2 OPTIONS : either none is found = text saying none is found
         #             one is found : create radio buttons to decide on weither to keep the header or not...
         
-        self.header_radio_keep = ttk.Radiobutton(structure_frame, text = "Keep", variable = self.header,value = "Keep", state="disabled")
-        self.header_radio_keep.grid(row=3, column=0, padx=2, pady=5, sticky='ew')
-        self.header_radio_remove = ttk.Radiobutton(structure_frame, text = "Remove", variable = self.header,value = "Remove", state="disabled")
-        self.header_radio_remove.grid(row=3, column=1, padx=2, pady=5, sticky='ew')
-        ttk.Radiobutton(structure_frame, text = "None found", variable = self.header,value = "None", state="disabled").grid(row=3, column=2, padx=2, pady=5, sticky='ew')
+        self.header_radio_keep = tk.Radiobutton(structure_frame, text = "Keep",relief="flat",borderwidth=0, highlightthickness=0, activebackground=structure_frame.cget("bg"), variable = self.header,value = "Keep", state="disabled", bg=structure_color_secondary)
+        self.header_radio_keep.grid(row=3, column=0, columnspan=2, padx=2, pady=5, sticky='ew')
+        self.header_radio_remove = tk.Radiobutton(structure_frame, text = "Remove",relief="flat",borderwidth=0, highlightthickness=0, activebackground=structure_frame.cget("bg"), variable = self.header,value = "Remove", state="disabled", bg=structure_color_secondary)
+        self.header_radio_remove.grid(row=3, column=2, columnspan=2, padx=2, pady=5, sticky='ew')
+        tk.Radiobutton(structure_frame, text = "None found",relief="flat",borderwidth=0, highlightthickness=0, activebackground=structure_frame.cget("bg"), variable = self.header,value = "None", state="disabled", bg=structure_color_secondary).grid(row=3, column=4, columnspan=2, padx=2, pady=5, sticky='ew')
         #================================================================================#
         
         # CODE for the UI elements #

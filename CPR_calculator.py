@@ -5,14 +5,21 @@ class parsed_data():
         #VARS
         #==========================
         self.data = data
-        self.VP_generation = 0 #Default of 0, this variable gets modified by find_v_p_table_offsets() to become a string of the generation name
+        self.VP_generation = "Unknown" #Default of "Unknown", this variable gets modified by find_v_p_table_offsets() to become a string of the generation name
+        self.PT_plateform = "Unknown" #Default of "Unknown", this variable gets modified by get_power_table_list() to become a string of the plateform type
+        
 
         self.VP_header_length = 0 #Used to store the length of the VP header + 1 (to get to the beginning of the VP table)
+        
         self.VP_profile_list = [] # 2D List !! Contains the lists of each VP table (= CAN BE 2 !!) -> containing individual dictionaries relating to each VP profile
         self.VP_footer_list = [] # 2D List !! Contains the lists of each VP footer (= CAN BE 2 !!) -> containing individual dictionaries relating to each VP profile
+        self.number_of_non_empty_VP_profiles = 0
+        self.number_of_non_empty_VP_footers = 0
         
         self.clock_multiplier = 1
-        self.header_list = []
+        self.header_list = [] #List that contains the vbios header list "NVGI" IF present
+        self.clock_dictionnary = {} #Dictionnary that will containt the clock values with their repsective ID
+        self.clock_map = [] #List that is a "map" of the clocks using dictionnary IDs
         
         # DEFINITION OF THE OFFSETS INSIDE THE VP PROFILE !
         # Values in this order :
@@ -20,10 +27,10 @@ class parsed_data():
         # first_limit_clock -> second_limit_clock -> mem_clock_short -> mem_clock_long -> third_limit_clock
         
         # Define the pascal offsets
-        self.pascal_offset_list = [7, 13, 15, 17, 25]
+        self.pascal_offset_list = [7, 13, 15, 19, 25]
         
         # Define the offsets for all non pascal cards
-        self.non_pascal_offset_list = [9, 15, 17, 19, 39]
+        self.non_pascal_offset_list = [9, 15, 17, 21, 39]
         
         # Define the length of the values (same for pascal or non pascal)
         self.offset_length = [2, 2, 2, 4, 2]
@@ -34,19 +41,31 @@ class parsed_data():
         self.VP_offset_list = self.find_v_p_table_offsets()
         self.get_card_architecture()
         self.get_VP_profiles_list()
+        self.get_number_o_empty_VP_profiles()
         self.get_VP_footers_list()
+        self.get_number_o_empty_VP_footers()
+        
+        """
+        #SSJ92's check... Unused v1.4
         
         core_tables = self.get_CORE_clock_list()
         
         self.VP_core_clock_list = core_tables[0] if core_tables else []  # simple list; empty for unsupported/new formats
-
-
-
+        """
+        self.VP_core_clock_list = self.get_CORE_clock_list()
+        self.clock_dictionnary = self.return_sorted_calculated_clock_list()
+        self.clock_map = self.get_clock_map_list()
+        
+        print("======================")
+        print("The vbios clock map is the following list :")
+        print(self.clock_map)
+        print("=====================")
+        
         self.MEM_clock_list = self.get_MEM_clock_list()
         self.POWER_list = self.get_power_table_list()
 
         self.get_header_info()
-        print(self.header_list)
+        #print(self.header_list)
     
     def find_v_p_table_offsets(self): 
         """
@@ -132,7 +151,7 @@ class parsed_data():
                 
                 ID = struct.unpack("<B", data[offset:offset+1])[0]
                 
-                if ID == 7 or i == 10:
+                if ID == 7 or i == 10: #It appears that all vbios start with a profile of ID 0x07
                     end = True
                 
                 sub_list_of_profiles.append(self.get_VP_profiles_details(offset))    
@@ -140,8 +159,6 @@ class parsed_data():
                 i += 1
             
             self.VP_profile_list.append(sub_list_of_profiles)
-        
-        #print(self.VP_profile_list)
     
     def get_VP_footers_list(self):
         """
@@ -172,18 +189,25 @@ class parsed_data():
                 
                 ID = struct.unpack("<B", data[offset:offset+1])[0]
                 
-                if ID == 7 or i == 20:
+                #3 checks to know if the end of the footer list was achieved : 
+                    # First check is if we reach footer ID 0x7 = last footer
+                    #Last check is if there is a non null byte just after the ID = Seems to be the case for all vbios
+                
+                if (ID == 7 and i>3) or i == 20 or (struct.unpack("<B", data[offset+1:offset+2])[0] != 0 and i>3): 
                     end = True
                 
                 #Memory clock is always 9 bytes after the ID !!
-                mem_clock = struct.unpack("<I", data[offset+9:offset+13])[0]/32768
-                sub_list_of_footers.append((ID, mem_clock, offset+9))    
+                if struct.unpack("<B", data[offset+1:offset+2])[0] == 0:
+                    mem_clock_short = struct.unpack("<H", data[offset+11:offset+13])[0]*2
+                    
+                    mem_clock_long = struct.unpack("<H", data[offset+9:offset+11])[0]
+                    mem_clock_long = mem_clock_long - self.calculate_correct_clock_data(mem_clock_long)
+                    
+                    sub_list_of_footers.append((ID, mem_clock_long, offset+9, mem_clock_short))    
                 
                 i += 1
             
             self.VP_footer_list.append(sub_list_of_footers)
-        
-        #print(self.VP_footer_list)
         
     def get_VP_profiles_details(self, adress):
         """
@@ -217,26 +241,71 @@ class parsed_data():
         
         for i in range(5):
             offset_from_adress = list_of_offsets_2_use[i] + adress
-            length_of_value = self.offset_length[i]
+            length_of_value = 2
             value_ID = list(dictionary_2_send.keys())[i+1]
             
-            # Dumb way of making the 'unpack' function work...
             unpack_string = "<H"
-            if length_of_value == 4:
-                unpack_string = "<I"
 
             dictionary_2_send[value_ID] = [struct.unpack(unpack_string, self.data[offset_from_adress:offset_from_adress+length_of_value])[0]*multiplier,offset_from_adress]
-        
+            #print(dictionary_2_send[value_ID])
         #CORRECTIONS AFTER THE FACT FOR THE MEM CLOCKS !
         dictionary_2_send["mem_clock_short"][0] = dictionary_2_send["mem_clock_short"][0]/multiplier
-        dictionary_2_send["mem_clock_long"][0] = dictionary_2_send["mem_clock_long"][0]/multiplier/32768 #TO lazy to actually calculate it correctly with the -32768 -> -16384... good enough
-            
+        dictionary_2_send["mem_clock_long"][0] = (dictionary_2_send["mem_clock_long"][0]/multiplier - self.calculate_correct_clock_data(dictionary_2_send["mem_clock_long"][0]/multiplier)) *2
+        
         return dictionary_2_send
     
+    def get_number_o_empty_VP_profiles(self):
+        """
+        Simple function that returns the number of non empty VP profiles, used for the GUI
+        """
+        count = 0
+        for profile in self.VP_profile_list[0]: #assumes that the two vbios images are identical, like the rest of the program
+            if profile["ID"] != "0xff":
+                count += 1
+        self.number_of_non_empty_VP_profiles = count
+        
+    def get_number_o_empty_VP_footers(self):
+        """
+        Simple function that returns the number of non empty VP footers, used for the GUI
+        """
+        count = 0
+        for footer in self.VP_footer_list[0]: #assumes that the two vbios images are identical, like the rest of the program
+            if footer[0] != 255:
+                count += 1
+        self.number_of_non_empty_VP_footers = count
+        
+    def printout_VP_profile_info(self, profile):
+        """
+        Function used for GUI printout of the info for each VP profile
+        """
+        return_string = ""
+        if profile["ID"] == "0xff":
+            return_string = f"{profile['ID']:<7}{'x':<13}{'x':<13}{'x':<13}{'x':<13}{'x':<13}"
+        else:
+            #ID_dec = int(profile["ID"], 0)
+            return_string = f"{profile['ID']:<7}{profile['first_limit_clock'][0]:<13}{profile['second_limit_clock'][0]:<13}{profile['third_limit_clock'][0]:<13}{round(profile['mem_clock_long'][0]):<13}{round(profile['mem_clock_short'][0]):<13}"
+        return return_string
+    
+    def printout_VP_footer_info(self, footer):
+        """
+        Function used for GUI printout of the info for each VP footer
+        
+        We are working with a list, not a dictionnary !
+        """
+        return_string = ""
+        if footer[0] == 255: #Here we are working in decimal, not hex...
+            return_string = f"{hex(footer[0]):<7}{'x':<13}{'x':<13}"
+        else:
+            #ID_dec = int(profile["ID"], 0)
+            return_string = f"{hex(footer[0]):<7}{footer[3]:<13}{footer[1]:<13}"
+        return return_string
+            
     def get_CORE_clock_list(self):
         """
         Returns a 2D list containing the clock values, max 2 sub lists inside this big list (based on searching diff card vbios)
         IF you have 2 sub lists, they should be identical
+        
+        REWORKED in v1.4 so that the list can be of variable size !
         """
         data = self.data
         
@@ -249,7 +318,7 @@ class parsed_data():
             i = 0
             while True:
                 """
-                # OLD METHOD !! now use the 2 dirst bytes to get a super accurate clock...
+                # OLD METHOD !! now use the 2 first bytes to get a super accurate clock...
                 
                 chunk = data[(offset + i*offset_jump) : (offset + 4 + i*offset_jump)]
                 clock_entry = struct.unpack("<I", chunk)[0] 
@@ -264,20 +333,31 @@ class parsed_data():
                 """
                 
                 #New method, using the 2 last bytes of the entry to get a precise value
+                real_offset = offset + i*offset_jump
                 
-                chunk = data[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)]
-                clock_entry = self.calculate_correct_clock_data(struct.unpack("<H", chunk)[0]) 
+                chunk = data[(real_offset) : (real_offset + 2)]
+                
+                pending_clock = struct.unpack("<H", chunk)[0]
+                clock_entry = pending_clock - self.calculate_correct_clock_data(pending_clock) 
                 
                 clock_value = clock_entry/2*self.clock_multiplier #NEW CHANGE !
                 
-                if clock_value > 100 and clock_value < 3500:
-                    clock_table.append(clock_value)
-                else :
+                #===============#
+                #Check for the end of the clock list is modified -> stop if clock is null => Go solution for now
+                #Creates a list of variable size
+                #===============#
+                
+                clock_denominator = struct.unpack("B", data[real_offset-1:real_offset])[0]
+
+                if clock_value == 0:
                     break
+                else :
+                    clock_table.append(round(clock_value))
+                    #print((clock_denominator, clock_value))
                 i+= 1
                 
             clock_table_2D.append(clock_table)
-            
+            #print(clock_table_2D)  
         return clock_table_2D
     
     def get_MEM_clock_list(self):
@@ -298,8 +378,12 @@ class parsed_data():
             
             #UPDATE -> This is kept...
             
-            MEM_clock_list_2D.append((struct.unpack("<H", data[offset + 10: offset +10 +2])[0]*4, offset + 8))
+            # V1.4 -> Mem clock better understood, the "REAL" DDR value (can contain odd numbers) is actually the FIRST 2 bytes found in the VP clock list -> decoding needed
+            FIRST_2_bytes = struct.unpack("<H", data[offset + 8: offset +8 +2])[0]
+            FIRST_2_bytes = FIRST_2_bytes - (self.calculate_correct_clock_data(FIRST_2_bytes))
+            MEM_clock_list_2D.append((FIRST_2_bytes, offset + 8))
 
+        #print(MEM_clock_list_2D)
         return MEM_clock_list_2D
         
     def check_return_offset(self, data, start_offset, bytes2check):
@@ -330,6 +414,32 @@ class parsed_data():
         It works by looking for hex string "28 46 0F 00 28 46 0F" That is present somewhere at the top of power limit table
         
         The returned list is 2D and can contain 2 sub lists -> Both sub lists should be identical but at different offsets!
+        
+        MODIFICATION V1.4 :
+        Now this functions has 3 algorithms : 
+            - One to find the power values of a standard mobile card
+            - One to find the power values of a desktop card
+            - One to find the power values of a low power mobile card (P600m, P1000m, mx150, etc...)
+            
+        DETAILS :
+        Standard mobile cards :
+            Values are found after 3x "00 01 00" string is counted, after the power table hex string is located.
+            Values are then 6 bytes AFTER the last "01" byte and are in 2x3 bytes strings seperated by one "00" byte
+            
+        Desktop cards :
+            Values are found after 3x "00 01 00" string is counted, after the power table hex string is located.
+            Values are then 8 bytes BEFORE the last "01" byte and are in 2x3 bytes strings seperated by one "00" byte
+            
+        Low power mobile cards :
+            Values are found after 13x "00 01 00" string is counted, after the power table hex string is located.
+            Values are then 13 bytes AFTER the last "01" byte and are in 2x3 bytes strings seperated by one "00" byte
+            
+        To differentiate:
+        First : the code places itself at the 3x"00 01 00"
+        Second : it reads the "useless" power value of 3 bytes located before
+        IF it is <5 watts -> It's a low power mobile GPU
+        IF it's > 5 watts -> It's a dektop GPU
+        IF it's = 0 watts -> It's a mobie GPU
         """
         data = self.data
         
@@ -340,6 +450,8 @@ class parsed_data():
 
             for offset in self.check_return_offset(data, 0, search_bytes) :  
             
+                # POWER SLIDER ==================================    
+            
                 snippet1 = data[offset-200 : offset+200] # -200 to get before table
         
                 # get the list of sliders
@@ -348,6 +460,7 @@ class parsed_data():
                 slider_true = struct.pack("BBBBB", 0x0F, 0x02, 0xFF, 0xFF, 0xFF)
                 slider_false = struct.pack("BBBBB", 0x0F, 0xFF, 0xFF, 0xFF, 0x02)
                 slider_weird = struct.pack("BBBBB", 0x0F, 0x02, 0xFF, 0xFF, 0x02)
+                slider_weird2 = struct.pack("BBBBB", 0x0F, 0xFF, 0xFF, 0xFF, 0x00)
         
             #assumes there won't be 2 different values in the same vbios...
         
@@ -357,23 +470,63 @@ class parsed_data():
                     slider_list.append((True, entry + offset -200))
                 for entry in self.check_return_offset(snippet1, 0, slider_weird):
                     slider_list.append((False, entry + offset -200))   
+                for entry in self.check_return_offset(snippet1, 0, slider_weird2):
+                    slider_list.append((False, entry + offset -200))
         
-                # looks for the power values -> Only works for GPUS wit 2 power values aka all mobile gpus, 3090 desktop won't work for example
-                # Method : count 3x"0x01" bytes after the offset string, power values are located 7 bytes after
+                # POWER VALUES ==================================   
                 
                 power_list = []
                 
                 snippet2 = data[offset : offset+200]
                 
-                power_offset = self.check_return_offset(snippet2, 0, struct.pack("BBB", 0x00, 0x01, 0x00))[2] + offset +7    
+                power_offset = self.check_return_offset(snippet2, 0, struct.pack("BBB", 0x00, 0x01, 0x00))[2] + offset
                 
-                power_list.append((struct.unpack("<I", data[power_offset: power_offset+4])[0], power_offset))
+                useless_power_value = struct.unpack("<I", data[power_offset - 11: power_offset - 7])[0]
+                #print(useless_power_value)
+                #print(power_offset)
                 
-                power_list.append((struct.unpack("<I", data[power_offset +4: power_offset+8])[0], power_offset+4))
+                target = 0
+                target_offset = 0
+                limit = 0
+                limit_offset = 0
+                
+                if useless_power_value == 0:
+                    self.PT_plateform = "Mobile"
+                    
+                    target = struct.unpack("<I", data[power_offset + 7: power_offset+11])[0]
+                    target_offset = power_offset + 7
+                    
+                    limit = struct.unpack("<I", data[power_offset + 11: power_offset+15])[0]
+                    limit_offset = power_offset + 11
+                    
+                elif useless_power_value < 5000:
+                    self.PT_plateform = "Mobile low power"
+                    
+                    snippet3 = data[power_offset : power_offset+800]
+                    offset_low_power = self.check_return_offset(snippet3, 0, struct.pack("BBB", 0x00, 0x01, 0x00))[10] + power_offset
+                    
+                    target = struct.unpack("<I", data[offset_low_power + 20: offset_low_power +24])[0]
+                    target_offset = offset_low_power + 20
+                    
+                    limit = struct.unpack("<I", data[offset_low_power + 24: offset_low_power+28])[0]
+                    limit_offset = offset_low_power + 24
+                else: 
+                    self.PT_plateform = "Desktop"
+                    
+                    target = struct.unpack("<I", data[power_offset - 7: power_offset - 3])[0]
+                    target_offset = power_offset - 7
+                    
+                    limit = struct.unpack("<I", data[power_offset - 3 : power_offset +1])[0]
+                    limit_offset = power_offset -3
+                
+                power_list.append((target, target_offset))
+                power_list.append((limit, limit_offset))
                 
                 power_list_2D.append(power_list + slider_list)
         else :
             power_list_2D = [-1]
+        #print("power list :")
+        #print(power_list_2D)
         return power_list_2D
     
     def get_pci_device_id(self):
@@ -425,7 +578,6 @@ class parsed_data():
         
         self.header_list = return_list
             
-
     def get_card_family(self):
         did = self.get_pci_device_id()
         if did is None:
@@ -468,50 +620,28 @@ class parsed_data():
 
         return return_string
     
-    def calculate_correct_mem_data(self, value, vbios, adress):
-        """
-        This function calculates the corrected mem data based on the NEW value to code
-        and the vbios to work on that contains the original values
-        
-        It returns a list of:
-            - first 2 bytes
-            - last 2 bytes
-        """
-        read_2_first_bytes = struct.unpack("<H", vbios[adress : (adress + 2)])[0]
-        
-        # FIRST BYTES CALCULATIONS
-        
-        clock_value_first_2_bytes = 0
-        
-        if read_2_first_bytes - 32768 - 16384 > 0:
-            clock_value_first_2_bytes = value + 32768 + 16384
-        elif read_2_first_bytes - 32768 > 0:
-             clock_value_first_2_bytes = value + 32768
-        elif read_2_first_bytes - 16384 > 0:
-            clock_value_first_2_bytes = value + 16384
-        else:
-            clock_value_first_2_bytes = value #No clue if this is needed probably not
-        
-        return clock_value_first_2_bytes
-        
     def calculate_correct_clock_data(self, value):
         """
-        This function calculates the corrected mem data based on the Nvidia clock format
+        This function calculates the correction needed to get correct clock data
         
-        -> Used when reading the core clock values
+        -> Used when reading the core clock values & when saving
         
-        It returns the corrected value:
+        It returns either:
+            - 32768+16384
+            - 32768
+            - 16384
+            - 0
         """
         return_value = 0
         
         if value - 32768 - 16384 > 0:
-            return_value = value - 32768 - 16384
+            return_value = 32768 + 16384
         elif value - 32768 > 0:
-             return_value = value - 32768
+             return_value = 32768
         elif value - 16384 > 0:
-            return_value = value - 16384
+            return_value = 16384
         else:
-            return_value = value #No clue if this is needed probably not
+            return_value = 0 #No clue if this is needed probably not
         
         #print(return_value)
         return return_value
@@ -521,12 +651,52 @@ class parsed_data():
         return sorted & calculated list going from :
         idle clock -> base clock -> boost clock -> max clock -> MEM clock
         all clocks are in MHz
+        
+        CHANGE V1.4 -> now in a dictionnary with values being null
         """
         # ONLY TAKES 4 FIRST VALUES BECAUSE OF PROBLEM WITH 1650M vbios
         
         clock_list = []
-        if len(self.get_CORE_clock_list()) > 0:
-            clock_list = sorted(set(self.get_CORE_clock_list()[0]))
+        
+        clock_list = sorted(set(self.VP_core_clock_list[0]))
+        
+        clock_dictionnary = { #idle is added later !
+                    "max" : 0,
+                    "boost" : 0,
+                    "base" : 0
+                    }   
+        
+        #Several things happen:
+        #    - if minimum value < 310 Mhz -> It is set as the idle clock 
+        #    - rest of the values are sorted in a descending manner into max -> boost -> base clock of the vbios 
+        #    - Meaning 4 values max, other values e.g. in 1060 vbios will not be included (don't change anything anyway)
+        
+        i = 0
+        keys = list(clock_dictionnary.keys())
+        
+        #print(clock_list)
+        
+        min_value = clock_list[0]
+        if min_value < 310:
+            clock_list.pop(0)
+        else :
+            min_value = 0
+        
+        while i<3 and len(clock_list)-i > 0:
+            #print(i)
+            clock_dictionnary[keys[i]] = clock_list[-i-1]
+            i += 1
+
+        #print()
+        clock_dictionnary["idle"] = min_value
+        #print(clock_dictionnary)
+        
+        
+        """
+        #==================#
+        #Change from list to dictionnary for v1.4
+        #==================#
+        
         sorted_list = []
         
         # len = 4 is the usual structure :
@@ -555,6 +725,9 @@ class parsed_data():
         else :
             sorted_list=[-1,-1,-1,-1,-1] #Dumb way of making sure no errors
         """
+        
+        
+        """
         # USELESS !!
         
         # CORRECTION OF CLOCK VALUES    
@@ -566,11 +739,34 @@ class parsed_data():
         for i in range(len(sorted_list)-1):
             sorted_list[i] = sorted_list[i] * multiplier
         """
-        return sorted_list
+        return clock_dictionnary
     
+    def get_clock_map_list(self):
+        """
+        Returns a list that is a "map" of the clock list.
+        5 possible values in this list:
+            - idle
+            - base
+            - boost
+            - max
+            - skip
+        """    
+        clock_map = []
+        possible_clock_values = list(self.clock_dictionnary.values())
+        #print(possible_clock_values)
+        for clock in self.VP_core_clock_list[0]:
+            if clock in possible_clock_values:
+                index_of_clock = possible_clock_values.index(clock)
+                ID = list(self.clock_dictionnary.keys())[index_of_clock]
+                clock_map.append(ID)
+            else:
+                clock_map.append("skip")
+        
+        return clock_map
+"""
 # TESTING
-""" 
-with open("1060M.bin", "rb") as f:
+
+with open("P4000_ES.bin", "rb") as f:
         data = f.read()
 
 parsed_vbios = parsed_data(data)

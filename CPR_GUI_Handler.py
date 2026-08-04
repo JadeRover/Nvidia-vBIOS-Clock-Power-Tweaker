@@ -22,6 +22,11 @@ class GUI_handler:
         
         self.critical_save_vbios_error = False
         
+        #VARS
+        self.custom_clock_list = []
+        self.OG_clock_list =[]
+        # Both lists are to be filled when saving the vbios
+        
     def link_GUI(self, GUI):
         self.GUI = GUI
         
@@ -71,9 +76,13 @@ class GUI_handler:
                 self.set_architecture()
                 self.load_header_to_GUI()
             else:
-                self.GUI.architecture.set("Unknown")
+                self.GUI.architecture_var.set("Unknown")
+                
+            # ================= LOADING UI ELEMENTS ================= #
             #self.load_checksum_to_GUI()
             self.load_display_to_GUI()
+            self.load_VP_Profiles_to_GUI()
+            self.load_VP_Footers_to_GUI()
             
             self.GUI.save_button["state"] = "normal"
             
@@ -82,41 +91,68 @@ class GUI_handler:
     def load_clocks_to_GUI(self):
         
         # Loads to stock clocks into the entries of the clock tab of the GUI
-        clock_list = self.vbios_parsed.return_sorted_calculated_clock_list()  
+        clock_dictionnary = self.vbios_parsed.clock_dictionnary 
+        #print("==VOID==")
+        #print(clock_dictionnary)
         
-        
+        """ 
+        # OLD... Changed in V1.4
         # CHECK IF DIFFERENT MEM VALUES = IMPORTANT TO NOTIFY THE USER
         self.legal_mem_clocks = True
         mem_list = self.vbios_parsed.MEM_clock_list
         #print(mem_list)
         if mem_list == [] : #NOT VBIOS
-            self.legal_mem_clocks = False
-            
-            
-        OG_entry_list = [self.GUI.OG_idle, self.GUI.OG_base, self.GUI.OG_boost, self.GUI.OG_max, self.GUI.OG_mem]
-        CUSTOM_entry_list = [self.GUI.custom_idle, self.GUI.custom_base, self.GUI.custom_boost, self.GUI.custom_max, self.GUI.custom_mem]
+        self.legal_mem_clocks = False
         
-        for index in range(len(clock_list)):
+        """
+        
+        clock_dictionnary_ids = ["idle", "base", "boost", "max"]
+            
+        OG_entry_list = [self.GUI.OG_idle, self.GUI.OG_base, self.GUI.OG_boost, self.GUI.OG_max]
+        CUSTOM_entry_list = [self.GUI.CUSTOM_idle_clock_entry, self.GUI.CUSTOM_base_clock_entry, self.GUI.CUSTOM_boost_clock_entry, self.GUI.CUSTOM_max_clock_entry]
+        CUSTOM_stringvar = [self.GUI.custom_idle, self.GUI.custom_base, self.GUI.custom_boost,self.GUI.custom_max]
+        
+        for index in range(4): #Fixed size of 4 since everything get's filled up...
+            clock_value = clock_dictionnary[clock_dictionnary_ids[index]]
+            CUSTOM_entry_list[index].config(state="normal")
+            if clock_value == 0:
+                clock_value = "No Value"
+                CUSTOM_entry_list[index].config(state="disabled")
             OG_entry_list[index].config(state="normal")
             OG_entry_list[index].delete(0, "end")
-            OG_entry_list[index].insert(0, round(clock_list[index]))
+            OG_entry_list[index].insert(0, clock_value)
             OG_entry_list[index].config(state="disabled")
             
             # 2. Update Custom Spinboxes via their TextVariables
-            # This is the ONLY way to update a StringVar/IntVar
-            CUSTOM_entry_list[index].set(round(clock_list[index]))          
+            # This is the ONLY way to update a StringVar/IntVar   
+            
+            CUSTOM_stringvar[index].set(clock_value)
         
+        mem_value = self.vbios_parsed.MEM_clock_list[0][0]
         
-        #VERY IMPORTANT
+        #MEM CLOCKS
+        self.GUI.OG_mem.config(state="normal")
+        self.GUI.OG_mem.delete(0, "end")
+        self.GUI.OG_mem.insert(0, mem_value)
+        self.GUI.OG_mem.config(state="disabled")
+        
+        self.GUI.custom_mem.set(mem_value)
+        
+        self.legal_core_clocks = True
+        self.legal_mem_clocks = True
+        
+        """
+        #VERY IMPORTANT -> Discarded in v1.4
         self.legal_core_clocks = True
         if clock_list[0] == -1:
             self.GUI.console["state"] = "normal"
             self.GUI.console.insert(tk.INSERT, "\n\n"+"ERROR : Clock table is not in the expected format, values will be all -1 and uneditable")
             self.GUI.console["state"] = "disabled"                
             self.legal_core_clocks = False
+        """
         
     def load_power_to_GUI(self):
-        COMPLETE_power_list = self.vbios_parsed.get_power_table_list()[0]
+        COMPLETE_power_list = self.vbios_parsed.POWER_list[0]
         
         OG_entry_list = [self.GUI.OG_target, self.GUI.OG_limit]
         CUSTOM_entry_list = [self.GUI.custom_target, self.GUI.custom_limit]
@@ -142,22 +178,22 @@ class GUI_handler:
                 CUSTOM_entry_list[index].set(round(power_list[index]))
             
             # Slider calculationss :
-            COMPLETE_power_list.pop(0)
-            COMPLETE_power_list.pop(0)
+            #COMPLETE_power_list.pop(0)
+            #COMPLETE_power_list.pop(0)
             #Remove the 2 power values
             
             slider_var = 0
             self.legal_slider = True
-            if len(COMPLETE_power_list) == 1: #If there is only one slider value
-                slider_var = str(COMPLETE_power_list[0][0])
-            elif len(COMPLETE_power_list) == 0:
+            if len(COMPLETE_power_list) == 3: #If there is only one slider value
+                slider_var = str(COMPLETE_power_list[2][0])
+            elif len(COMPLETE_power_list) == 2:
                 self.GUI.console["state"] = "normal"
                 self.GUI.console.insert(tk.INSERT, "\n\n"+"ERROR : Power slider unfindable ! (not even unknown !) do not set anything ! happens for P6 quadro cards")
                 self.GUI.console["state"] = "disabled"
                 self.legal_slider = False
             else:
-                if COMPLETE_power_list[0][0] == COMPLETE_power_list[1][0]:
-                    slider_var = str(COMPLETE_power_list[0][0])
+                if COMPLETE_power_list[2][0] == COMPLETE_power_list[3][0]:
+                    slider_var = str(COMPLETE_power_list[2][0])
                 else :
                     slider_var = "Unknown"
                     self.GUI.console["state"] = "normal"
@@ -187,8 +223,14 @@ class GUI_handler:
                 CUSTOM_entry_list[index].set(0)
         
     def set_architecture(self):
-        self.GUI.architecture.set(self.vbios_parsed.get_card_architecture())
+        """
+        Function modified in V1.4
+        -> Now it sets the architecture precisely based on the clock table as well as the power table (mobile/desktop)
+        """
+        self.GUI.architecture_var.set(self.vbios_parsed.VP_generation)
+        self.GUI.plateform_var.set(self.vbios_parsed.PT_plateform)
     
+        
     """
     
     # REMOVED FOR NOW
@@ -225,7 +267,45 @@ class GUI_handler:
         self.GUI.display_config_text.delete("1.0", tk.END)
         self.GUI.display_config_text.insert(tk.INSERT, summary)
         self.GUI.display_config_text["state"] = "disabled"
+        
+    def load_VP_Profiles_to_GUI(self):
+        """Load VP table profiles & headers !!"""
+        if self.vbios_parsed.VP_profile_list != []: #If there is no error
+            self.GUI.VP_text["state"] = "normal"
+            self.GUI.VP_text.delete("1.0", tk.END)
+            self.GUI.VP_text.insert(tk.INSERT, f"\n\n======== PROFILES ========\n\n")
+            self.GUI.VP_text.insert(tk.INSERT, f"Total number of profiles : {len(self.vbios_parsed.VP_profile_list[0])}\n")
+            self.GUI.VP_text.insert(tk.INSERT, f"Number of non empty profiles : {self.vbios_parsed.number_of_non_empty_VP_profiles}\n\nIndividual Profiles (values in Mhz) :\n")
+            self.GUI.VP_text.insert(tk.INSERT, "ID     Limit 1      Limit 2      Limit 3      Mem clock    Mem clock DDR\n")
+            self.GUI.VP_text.insert(tk.INSERT, "-----  -----------  -----------  -----------  -----------  -------------\n")
+            
+            for profile in self.vbios_parsed.VP_profile_list[0]: #Only for the first sub-list as they are the same for the second sub-list
+                string = self.vbios_parsed.printout_VP_profile_info(profile)
+                self.GUI.VP_text.insert(tk.INSERT, string)
+                self.GUI.VP_text.insert(tk.INSERT, "\n")
+                
+            self.GUI.VP_text["state"] = "disabled"
     
+    def load_VP_Footers_to_GUI(self):
+        """Load VP table footers"""
+        if self.vbios_parsed.VP_footer_list != []: #If there is no error
+            self.GUI.VP_text["state"] = "normal"
+            #self.GUI.VP_text.delete("1.0", tk.END)
+            
+            self.GUI.VP_text.insert(tk.INSERT, f"\n\n======== FOOTERS ========\n\n")
+            
+            self.GUI.VP_text.insert(tk.INSERT, f"Total number of footers : {len(self.vbios_parsed.VP_footer_list[0])}\n")
+            self.GUI.VP_text.insert(tk.INSERT, f"Number of non empty footers : {self.vbios_parsed.number_of_non_empty_VP_footers}\n\nIndividual Footers (values in Mhz) :\n")
+            self.GUI.VP_text.insert(tk.INSERT, "ID     Mem clock    Mem clock DDR\n")
+            self.GUI.VP_text.insert(tk.INSERT, "-----  -----------  --------------\n")
+            
+            for footer in self.vbios_parsed.VP_footer_list[0]: #Only for the first sub-list as they are the same for the second sub-list
+                string = self.vbios_parsed.printout_VP_footer_info(footer)
+                self.GUI.VP_text.insert(tk.INSERT, string)
+                self.GUI.VP_text.insert(tk.INSERT, "\n")
+                
+            self.GUI.VP_text["state"] = "disabled"
+                
     def save_vbios(self):
         """
         This big function call several sub functions to :
@@ -248,14 +328,31 @@ class GUI_handler:
         # REWORKED FOR V1.2.4 !!
         multiplier = self.vbios_parsed.clock_multiplier*2
         
+        modified_clock_dictionnary = self.get_modified_clock_dictionnary()
+        #Also fills out self.custom_clock_list & self.OG_clock_list
         index_of_OF_vp = 0
+        
+        #Important to leave this 0F index here !
+        i = 0   
+        
+        while i<10:
+            if self.vbios_parsed.VP_profile_list[0][i]["ID"] == "0xf":
+                break
+            i += 1
+        
+        index_of_OF_vp = i
+        
+        equal = False
+
+        if self.OG_clock_list == self.custom_clock_list:
+            equal = True
         
         if self.legal_core_clocks == False:
             self.GUI.console["state"] = "normal"
             self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any core clock values due to previous error")
             self.GUI.console["state"] = "disabled"    
         
-        elif self.modified_clock_list()[1] == True:
+        elif equal == True:
             self.GUI.console["state"] = "normal"
             self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any core clock values because custom values are identical to the stock values")
             self.GUI.console["state"] = "disabled" 
@@ -294,34 +391,32 @@ class GUI_handler:
             ELSE
                 first 2 bytes must be clock value * 2
             """
+            
+                       # CORE CLOCK SAVING
         
+            #print(modified_clock_dictionnary)
         
             for offset in self.vbios_parsed.find_v_p_table_offsets():
                 offset_jump = 41
-                da_clock_list = self.modified_clock_list()[0]
-    
                 
-                for i in range(len(da_clock_list)):
-                    #clock_value_corrected_multiplier = da_clock_list[i]/multiplier Not needed
-                    clock_value_corrected_multiplier = da_clock_list[i]
-                    
-                    clock_value_last_2_bytes = clock_value_corrected_multiplier / 2
-                    
-                    read_bytes_2_first_bytes = struct.unpack("<H", temp_vbios[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)])[0]
-                    if read_bytes_2_first_bytes - 32768 > 0:
-                        clock_value_first_2_bytes = clock_value_corrected_multiplier*2+32768
-                    elif read_bytes_2_first_bytes - 16384 > 0:
-                         clock_value_first_2_bytes = clock_value_corrected_multiplier*2+16384
-                    else:
-                        clock_value_first_2_bytes = clock_value_corrected_multiplier*2
-                    
-                    # Saving value on the last 2 bytes
-                    temp_vbios[(offset + 2+ i*offset_jump) : (offset + 4 + i*offset_jump)] = struct.pack("<H", round(clock_value_last_2_bytes-0.2))   
-                    
-                    # Saving value on the first 2 bytes
-                    temp_vbios[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)] = struct.pack("<H", round(clock_value_first_2_bytes-0.2))
+                i = 0
+                for clock in self.vbios_parsed.clock_map :
+                    if clock != "skip":
+                        
+                        read_bytes_2_first_bytes = struct.unpack("<H", temp_vbios[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)])[0]
+                        
+                        correction_2_first_bytes = self.vbios_parsed.calculate_correct_clock_data(read_bytes_2_first_bytes)
+                        
+                        corrected_first_2_bytes = modified_clock_dictionnary[clock]*4/multiplier + correction_2_first_bytes
+                        
+                        # Saving value on the last 2 bytes
+                        temp_vbios[(offset + 2+ i*offset_jump) : (offset + 4 + i*offset_jump)] = struct.pack("<H", round(modified_clock_dictionnary[clock]/multiplier-0.4))   
+                        
+                        # Saving value on the first 2 bytes
+                        temp_vbios[(offset + i*offset_jump) : (offset + 2 + i*offset_jump)] = struct.pack("<H", round(corrected_first_2_bytes-0.4))
+                    i += 1
+        # ================================= #      
   
-        
         # "0F" VP profile saving clocks, NEW TO V1.2.4 !!
         # The first limit clock must be set above the max clock, that's it, nothing too hard
         # The second limit clock = first limit clock - 50 Mhz
@@ -332,21 +427,11 @@ class GUI_handler:
         # Look for the "0xF" ID of the VP:
         
             dict_list = ["first_limit_clock", "second_limit_clock", "third_limit_clock"]
-            
-            
-            
+            print(self.vbios_parsed.VP_profile_list)
             for VP_table in self.vbios_parsed.VP_profile_list:
-                i = 0   
-                
-                while i<10:
-                    if VP_table[i]["ID"] == "0xf":
-                        break
-                    i += 1
-                
-                index_of_OF_vp = i
                 
                 for j in range(3):
-                    offset = VP_table[i][dict_list[j]][1]
+                    offset = VP_table[index_of_OF_vp][dict_list[j]][1]
                     temp_vbios[offset:offset+2] = struct.pack("<H", round((int(self.GUI.custom_max.get())-j*50)/multiplier))
                
             
@@ -355,9 +440,9 @@ class GUI_handler:
              
         # MEM CLOCK SAVING CHECKS    
  
-        if self.legal_mem_clocks == False or int(self.GUI.custom_mem.get()) > 10000 or int(self.GUI.custom_mem.get()) == -1:
+        if self.legal_mem_clocks == False or int(self.GUI.custom_mem.get()) > 10000 or int(self.GUI.custom_mem.get()) < 100 :
             self.GUI.console["state"] = "normal"
-            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any Memory clock values due to previous error or because value is too high")
+            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any Memory clock values due to value being out of range (100-10000Mhz)")
             self.GUI.console["state"] = "disabled"    
         
         else:
@@ -384,6 +469,9 @@ class GUI_handler:
             
             # COMPLETE REWRITE OF THIS SECTION IN v1.24 !!
             
+            print()
+            print("mem list")
+            print(self.vbios_parsed.MEM_clock_list)
             for i in range(len(self.vbios_parsed.MEM_clock_list)) :
                 
                 value = self.vbios_parsed.MEM_clock_list[i]
@@ -399,7 +487,9 @@ class GUI_handler:
                 
                 # FIRST BYTES CALCULATIONS
                 
-                clock_value_first_2_bytes = self.vbios_parsed.calculate_correct_mem_data(mem_clock, temp_vbios, value[1])
+                #print(mem_clock)                
+                clock_value_first_2_bytes = struct.unpack("<H", temp_vbios[value[1]:value[1]+2])[0]
+                clock_value_first_2_bytes = mem_clock + self.vbios_parsed.calculate_correct_clock_data(clock_value_first_2_bytes)
                 
 
                 # Last 2 bytes is easy...
@@ -407,7 +497,7 @@ class GUI_handler:
                 
                 # Write the clocks at the correct adress
                 temp_vbios[(value[1]) : (value[1] + 2)] = struct.pack("<H", round(clock_value_first_2_bytes))
-                temp_vbios[(value[1] + 2) : (value[1] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+                temp_vbios[(value[1] + 2) : (value[1] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes-0.5))
                 
                 
                 #===========
@@ -422,15 +512,21 @@ class GUI_handler:
                 
                 selected_VP_profile = self.vbios_parsed.VP_profile_list[i][index_of_OF_vp]
                 
-                mem_data = selected_VP_profile["mem_clock_long"]
+                mem_data = selected_VP_profile["mem_clock_short"]
+                
+                clock_value_middle_2_bytes = struct.unpack("<H", temp_vbios[mem_data[1]+2:mem_data[1]+4])[0]
+                
+                #mem_data[1] == the adress of the FIRST clock value (out of 3)
                 
                 clock_value_first_2_bytes = mem_clock
-                clock_value_middle_2_bytes = self.vbios_parsed.calculate_correct_mem_data(mem_clock, temp_vbios, mem_data[1])
+                clock_value_middle_2_bytes = mem_clock + self.vbios_parsed.calculate_correct_clock_data(clock_value_middle_2_bytes)
                 clock_value_last_2_bytes = mem_clock/(4)
-                                        
-                temp_vbios[(mem_data[1]-2) : (mem_data[1])] = struct.pack("<H", round(clock_value_first_2_bytes))
-                temp_vbios[(mem_data[1]) : (mem_data[1]+2)] = struct.pack("<H", round(clock_value_middle_2_bytes))
-                temp_vbios[(mem_data[1]+2) : (mem_data[1]+4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+                
+                #print((clock_value_first_2_bytes,clock_value_middle_2_bytes,clock_value_last_2_bytes)) 
+
+                temp_vbios[(mem_data[1]) : (mem_data[1]+2)] = struct.pack("<H", clock_value_first_2_bytes)
+                temp_vbios[(mem_data[1]+2) : (mem_data[1]+4)] = struct.pack("<H", clock_value_middle_2_bytes)
+                temp_vbios[(mem_data[1]+4) : (mem_data[1]+6)] = struct.pack("<H", round(clock_value_last_2_bytes-0.5)) #-0.5 is very important !!
                 
                 #===========
                 # THIRD EDIT = CHANGE THE MEM CLOCK FOUND IN THE 0F VP FOOTER
@@ -444,7 +540,8 @@ class GUI_handler:
                 
                 # FIRST BYTES CALCULATIONS
                 
-                clock_value_first_2_bytes = self.vbios_parsed.calculate_correct_mem_data(mem_clock, temp_vbios, value[1])
+                clock_value_first_2_bytes = struct.unpack("<H", temp_vbios[value[1]:value[1]+2])[0]
+                clock_value_first_2_bytes = mem_clock + self.vbios_parsed.calculate_correct_clock_data(clock_value_first_2_bytes)
                 
 
                 # Last 2 bytes is easy...
@@ -453,15 +550,15 @@ class GUI_handler:
                 for footer in self.vbios_parsed.VP_footer_list[i]:
                     if footer[0] == 15: #Only applies to the 0F profile aka profile 15
                         temp_vbios[(footer[2]) : (footer[2] + 2)] = struct.pack("<H", round(clock_value_first_2_bytes))
-                        temp_vbios[(footer[2] + 2) : (footer[2] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes))
+                        temp_vbios[(footer[2] + 2) : (footer[2] + 4)] = struct.pack("<H", round(clock_value_last_2_bytes-0.5))
                 
         #=====================================================================================================#
         
         #POWER TABLE SAVING
         
-        if self.legal_power == False or int(self.GUI.custom_target.get()) > 350 or int(self.GUI.custom_limit.get()) > 350 or int(self.GUI.custom_limit.get()) < int(self.GUI.custom_target.get()):
+        if self.legal_power == False or int(self.GUI.custom_target.get()) > 850 or int(self.GUI.custom_limit.get()) > 850 or int(self.GUI.custom_limit.get()) < int(self.GUI.custom_target.get()):
             self.GUI.console["state"] = "normal"
-            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any power values due to previous error or because value is too high, or because targe > limit")
+            self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE ERROR : Did not change any power values due to previous error or because value is too high, or because target > limit")
             self.GUI.console["state"] = "disabled"
         
         else:
@@ -471,7 +568,9 @@ class GUI_handler:
             self.GUI.console["state"] = "normal"
             self.GUI.console.insert(tk.INSERT, "\n\n"+"SAVE INFORMATION: Custom Power values correctly saved to vbios")
             self.GUI.console["state"] = "disabled"
-            #print(self.vbios_parsed.POWER_list)
+            print()
+            print()
+            print(self.vbios_parsed.POWER_list)
             for img in self.vbios_parsed.POWER_list:
                 temp_vbios[(img[0][1]) : (img[0][1] + 4)] = struct.pack("<I", target_power*1000)
                 temp_vbios[(img[1][1]) : (img[1][1] + 4)] = struct.pack("<I", limit_power*1000)
@@ -528,40 +627,64 @@ class GUI_handler:
                 #print("Save operation cancelled.") 
                 """
                 """
+        self.GUI.console["state"] = "normal"
+        self.GUI.console.insert(tk.INSERT, "\n\n"+f"============= SAVE ATTEMPT =============")
+        self.GUI.console["state"] = "disabled"
         
         self.GUI.console.see(tk.END)
     
-    def modified_clock_list(self):
+    def get_modified_clock_dictionnary(self):
         """
-        Function returns the modified clock list in the correct order and with values correctly placed
+        Function returns the modified clock dictionnary
         """
-        CUSTOM_short_list = []
-        CUSTOM_entry_list = [self.GUI.custom_idle, self.GUI.custom_base, self.GUI.custom_boost, self.GUI.custom_max, self.GUI.custom_mem]
-        OG_short_list = self.vbios_parsed.return_sorted_calculated_clock_list()
-        for var in CUSTOM_entry_list:
-            CUSTOM_short_list.append(int(var.get()))
+        CUSTOM_entry_list = [self.GUI.custom_idle, self.GUI.custom_base, self.GUI.custom_boost, self.GUI.custom_max]
+        custom_clocks = []
         
-        CUSTOM_short_list.pop() #Remove MEM clock
-        OG_short_list.pop()#Remove MEM clock
-        equal = False
-        if OG_short_list == CUSTOM_short_list:
-            equal = True
-        final_list = []
-        for clock in self.vbios_parsed.VP_core_clock_list:
-            for i in range(len(OG_short_list)):
-                if clock > OG_short_list[i]/self.vbios_parsed.clock_multiplier - 1 and OG_short_list[i]/self.vbios_parsed.clock_multiplier + 1 > clock:
-                    final_list.append(CUSTOM_short_list[i]/self.vbios_parsed.clock_multiplier)
-                    break
-        return [final_list, equal]
+        OG_entry_list = [self.GUI.OG_idle, self.GUI.OG_base, self.GUI.OG_boost, self.GUI.OG_max]
+        OG_clock_list = []
+
+        for i in range(4):
+            clock_custom = CUSTOM_entry_list[i].get()
+            clock_og = OG_entry_list[i].get()
+            
+            if clock_og == "No Value":
+                clock_og= -1 #To pass the checks !!! The value isn't saved anywhere due to the clock map list
+            else :
+                clock_og = int(clock_og)
+                
+            if clock_custom == "No Value":
+                clock_custom= -1 #To pass the checks !!! The value isn't saved anywhere due to the clock map list
+            else :
+                clock_custom = int(clock_custom)
+                
+            custom_clocks.append(clock_custom)
+            OG_clock_list.append(clock_og)
+        
+        #Dictionary
+        custom_clocks_dictionnary = {
+            "idle" : custom_clocks[0],
+            "base" : custom_clocks[1],
+            "boost" : custom_clocks[2],
+            "max" : custom_clocks[3]
+            } 
+        
+        self.custom_clock_list = custom_clocks
+        self.OG_clock_list = OG_clock_list
+        
+        #print(self.custom_clock_list)
+        #print(self.OG_clock_list)
+        
+        return custom_clocks_dictionnary
         
     def check_custom_clocks_correct_order(self):
         """
         Function returns true if clocks are in correct order, false if not
         """   
         return_bool = True
-        CUSTOM_entry_list = [self.GUI.custom_idle, self.GUI.custom_base, self.GUI.custom_boost, self.GUI.custom_max, self.GUI.custom_mem]
-        for i in range(1, len(CUSTOM_entry_list)):
-            if int(CUSTOM_entry_list[i-1].get()) > int(CUSTOM_entry_list[i].get()) or int(CUSTOM_entry_list[i-1].get()) > 3000:
+        custom_clock_list = self.custom_clock_list
+            
+        for i in range(1, len(custom_clock_list)):
+            if (custom_clock_list[i-1] > custom_clock_list[i] or custom_clock_list[i-1] > 3000 or custom_clock_list[i-1] < 100) and custom_clock_list[i-1] != -1:
                 return_bool = False
                 break
         return return_bool
